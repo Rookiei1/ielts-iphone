@@ -127,8 +127,10 @@ async function main() {
     await loftPage.getByText("得分 2 / 2").waitFor();
     await loftPage.close();
 
-    await page.getByRole("button", { name: "听力" }).click();
-    await page.getByText("没有随包提供听力").waitFor();
+    await page.getByRole("button", { name: /练习记录/ }).click();
+    await page.locator("#practice-view").getByText("Harbor Notebook").waitFor();
+    await page.getByRole("button", { name: /数据设置/ }).click();
+    await page.locator("#settings-view").waitFor({ state: "visible" });
     const json = await page.evaluate(async () => window.practiceRecorder.exportData("json"));
     const imported = await page.evaluate(async (value) => {
       await window.AppData.practice.list();

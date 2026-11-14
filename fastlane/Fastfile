@@ -53,7 +53,7 @@ platform :ios do
       default_keychain: true,
       unlock: true,
       timeout: 3600,
-      lock_when_sleep: false
+      lock_when_sleeps: false
     )
     File.expand_path("~/Library/Keychains/#{name}")
   end
