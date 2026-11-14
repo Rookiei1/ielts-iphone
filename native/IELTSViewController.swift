@@ -12,16 +12,40 @@ final class PracticeWindowHost: NSObject, WKUIDelegate {
     func attach(to controller: UIViewController, webView: WKWebView) {
         container = controller.view
         webView.uiDelegate = self
+        webView.isOpaque = true
+        webView.backgroundColor = .systemBackground
+        webView.scrollView.backgroundColor = .systemBackground
+        #if DEBUG
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        }
+        #endif
         let preferences = webView.configuration.preferences
         preferences.javaScriptCanOpenWindowsAutomatically = true
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        let child = WKWebView(frame: container?.bounds ?? .zero, configuration: configuration)
-        child.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        guard let host = container else { return nil }
+        let child = WKWebView(frame: host.bounds, configuration: configuration)
+        child.translatesAutoresizingMaskIntoConstraints = false
         child.uiDelegate = self
+        child.isOpaque = true
+        child.backgroundColor = .systemBackground
+        child.scrollView.backgroundColor = .systemBackground
         child.scrollView.contentInsetAdjustmentBehavior = .never
-        container?.addSubview(child)
+        #if DEBUG
+        if #available(iOS 16.4, *) {
+            child.isInspectable = true
+        }
+        #endif
+        host.addSubview(child)
+        NSLayoutConstraint.activate([
+            child.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            child.topAnchor.constraint(equalTo: host.topAnchor),
+            child.bottomAnchor.constraint(equalTo: host.bottomAnchor)
+        ])
+        host.layoutIfNeeded()
         children.append(child)
         return child
     }

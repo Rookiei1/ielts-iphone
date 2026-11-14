@@ -94,24 +94,26 @@ def entry(exam_id: str, info: dict, folder: str) -> dict:
 
 
 def inject(html: str) -> str:
-    tags = (
-        '<link rel="stylesheet" href="/ios/iphone.css">\n'
+    scripts = (
         '<script src="/ios/bank.js"></script>\n'
         '<script src="/ios/iphone-bridge.js"></script>\n'
     )
+    style = '<link rel="stylesheet" href="/ios/iphone.css">\n'
     if 'name="viewport"' in html and "viewport-fit=cover" not in html:
         html = html.replace(
             'content="width=device-width, initial-scale=1.0"',
             'content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"',
         )
-    return html.replace("<head>", "<head>\n" + tags, 1).replace("<head ", "<head " , 1) if False else _inject_head(html, tags)
+    return _inject_head(html, scripts, style)
 
 
-def _inject_head(html: str, tags: str) -> str:
+def _inject_head(html: str, scripts: str, style: str) -> str:
     import re
-    if "/ios/iphone-bridge.js" in html:
-        return html
-    return re.sub(r"<head[^>]*>", lambda match: match.group(0) + "\n" + tags, html, count=1)
+    if "/ios/iphone-bridge.js" not in html:
+        html = re.sub(r"<head[^>]*>", lambda match: match.group(0) + "\n" + scripts, html, count=1)
+    if "/ios/iphone.css" not in html:
+        html = re.sub(r"</head>", style + "</head>", html, count=1)
+    return html
 
 
 def assert_clean(root: Path):

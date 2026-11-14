@@ -77,12 +77,18 @@ async function main() {
       if (bodyText.includes(forbidden)) throw new Error(`unexpected branding text: ${forbidden}`);
     }
     if ((await page.locator("#license-modal").count()) !== 0) throw new Error("license modal should be removed");
+    const topBarBox = await page.locator("#iphone-top-bar").boundingBox();
+    const firstCardBox = await page.locator(".exam-item").first().boundingBox();
+    if (!topBarBox || !firstCardBox || topBarBox.y + topBarBox.height > firstCardBox.y + 1) {
+      throw new Error(`library top bar overlaps card: top=${JSON.stringify(topBarBox)} card=${JSON.stringify(firstCardBox)}`);
+    }
     const navBox = await page.locator(".main-nav").boundingBox();
     if (!navBox || navBox.height > 80) throw new Error(`nav bar too tall on iPhone: ${navBox && navBox.height}`);
-    const libraryBarText = await page.locator("#iphone-bar").innerText();
-    if (libraryBarText.includes("文章") || libraryBarText.includes("题目")) {
-      throw new Error(`library bar should not show practice controls: ${libraryBarText}`);
+    if ((await page.locator("#iphone-bar").count()) !== 0) {
+      throw new Error("library page should use unified bottom tab bar without second #iphone-bar");
     }
+    const pdfVisible = await page.locator('.exam-item-action-btn[data-action="pdf"]').first().isVisible();
+    if (pdfVisible) throw new Error("dead PDF button should be hidden when exam hasPdf is false");
     await page.screenshot({ path: path.join(shots, "iphone-library.png") });
     await page.setViewportSize({ width: 430, height: 932 });
     await page.screenshot({ path: path.join(shots, "iphone-library-regular.png") });
@@ -93,6 +99,10 @@ async function main() {
     await harbor.getByRole("button", { name: "开始练习" }).click();
     const popup = await popupPromise;
     await popup.locator("#q1_input").waitFor();
+    const rightBox = await popup.locator("#right").boundingBox();
+    if (!rightBox || rightBox.height < 250 || rightBox.width < 300) {
+      throw new Error(`questions pane collapsed on iPhone: ${JSON.stringify(rightBox)}`);
+    }
     if ((await popup.opener()) !== page) throw new Error("practice window lost its opener");
     const submitBox = await popup.locator("#submit-btn").boundingBox();
     const barBox = await popup.locator("#iphone-bar").boundingBox();
@@ -100,6 +110,10 @@ async function main() {
       throw new Error(`submit button overlapped by iphone-bar: submit=${JSON.stringify(submitBox)} bar=${JSON.stringify(barBox)}`);
     }
     await popup.getByRole("button", { name: "文章" }).click();
+    const leftBox = await popup.locator("#left").boundingBox();
+    if (!leftBox || leftBox.height < 250 || leftBox.width < 300) {
+      throw new Error(`passage pane collapsed on iPhone: ${JSON.stringify(leftBox)}`);
+    }
     await popup.locator("#left").evaluate((node) => { node.scrollTop = 240; });
     await popup.getByRole("button", { name: "题目" }).click();
     await popup.getByRole("button", { name: "文章" }).click();
@@ -119,6 +133,8 @@ async function main() {
     const loftPromise = page.waitForEvent("popup");
     await loft.getByRole("button", { name: "开始练习" }).click();
     const loftPage = await loftPromise;
+    await loftPage.locator(".part-nav-section.iphone-part-show button").first().waitFor();
+    await loftPage.waitForTimeout(900);
     await loftPage.locator(".drag-item", { hasText: "loft" }).click();
     await loftPage.locator('.match-dropzone[data-question="q1"]').click();
     await loftPage.locator(".drag-item", { hasText: "shed" }).click();
@@ -129,8 +145,10 @@ async function main() {
 
     await page.getByRole("button", { name: /练习记录/ }).click();
     await page.locator("#practice-view").getByText("Harbor Notebook").waitFor();
+    await page.screenshot({ path: path.join(shots, "iphone-records.png") });
     await page.getByRole("button", { name: /数据设置/ }).click();
     await page.locator("#settings-view").waitFor({ state: "visible" });
+    await page.screenshot({ path: path.join(shots, "iphone-settings.png") });
     const json = await page.evaluate(async () => {
       if (window.AppEntry && typeof window.AppEntry.ensurePracticeSuiteGroup === "function") {
         await window.AppEntry.ensurePracticeSuiteGroup();

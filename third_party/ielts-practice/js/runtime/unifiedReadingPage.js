@@ -8656,6 +8656,13 @@
         });
     }
 
+    function withPreferenceTimeout(promise, timeoutMs = 1200) {
+        return Promise.race([
+            Promise.resolve(promise).catch(() => null),
+            new Promise((resolve) => global.setTimeout(() => resolve(null), timeoutMs))
+        ]);
+    }
+
     async function bootstrap() {
         try {
             global.AppDiagnostics?.subscribe((event) => {
@@ -8667,10 +8674,10 @@
             document.getElementById('messages-indicator')?.addEventListener('click', showHistory);
         } catch (_) { }
         readingStep('initialize', 'started');
-        await loadReadingCandidateCodePreferences();
-        if (global.PracticeTimerPreferences?.ready) await global.PracticeTimerPreferences.ready;
         parseQuery();
         captureDom();
+        // Render the passage and questions before optional AppData IndexedDB hydration so
+        // child WKWebViews never appear blank if storage takes a moment or blocks.
         const dataset = await ensureDataset();
         renderDataset(dataset);
         updateRedesignedSubHeader();
@@ -8687,13 +8694,17 @@
         attachUnifiedPanels();
         ensureReadingNotesUi();
         ensureReadingDisplayControls();
-        await loadReadingDisplayPreferences();
         attachSelectionHighlightToolbar();
         attachReviewHighlightDictionary();
         attachActionListeners();
         attachMessageBridge();
         attachPracticeTimerBridge();
         attachReadingDraftLifecycleHooks();
+        await withPreferenceTimeout(loadReadingCandidateCodePreferences(), 1200);
+        if (global.PracticeTimerPreferences?.ready) {
+            await withPreferenceTimeout(global.PracticeTimerPreferences.ready, 1200);
+        }
+        await withPreferenceTimeout(loadReadingDisplayPreferences(), 1200);
         syncSuiteModeState();
         setExitButtonVisible(false);
         if (state.memorizeMode) {
@@ -8707,13 +8718,27 @@
         try { global.AppDiagnostics?.markReady(); } catch (_) { }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function startBootstrap() {
         bootstrap().catch((error) => {
             readingFailure('APP_BOOT_FAILED', 'initialize', error, 'not-committed');
             console.error('[UnifiedReadingPage] 初始化失败:', error);
             if (dom.groups) {
                 dom.groups.textContent = '加载失败。请保留页面并导出诊断信息。';
             }
+            if (document.body && !document.getElementById('reading-boot-error')) {
+                const banner = document.createElement('div');
+                banner.id = 'reading-boot-error';
+                banner.setAttribute('role', 'alert');
+                banner.style.cssText = 'position:fixed;left:12px;right:12px;top:64px;z-index:99999;padding:12px 14px;border-radius:12px;background:#fee2e2;color:#7f1d1d;font-size:14px;';
+                banner.textContent = '题目加载失败：' + String(error && error.message || '未知错误');
+                document.body.appendChild(banner);
+            }
         });
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startBootstrap);
+    } else {
+        startBootstrap();
+    }
 })(typeof window !== 'undefined' ? window : globalThis);

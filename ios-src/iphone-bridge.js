@@ -92,7 +92,7 @@
 
   if (typeof window.showDirectoryPicker !== "function") {
     window.showDirectoryPicker = function () {
-      const error = new DOMException("请使用底部的「导入题库」或「导入学习数据」。", "AbortError");
+      const error = new DOMException("请在「设置」中选择「导入阅读题库 (.zip)」或「导入学习记录」。", "AbortError");
       setStatus(error.message, "error");
       return Promise.reject(error);
     };
@@ -109,57 +109,12 @@
       statusTimer = setTimeout(function () {
         node.textContent = "";
         node.dataset.state = "idle";
-      }, 2200);
+      }, 2400);
     }
   }
 
   function isPracticePage() {
     return Boolean(document.getElementById("left") && document.getElementById("right"));
-  }
-
-  function bootUi() {
-    if (document.getElementById("iphone-bar")) return;
-    const practice = isPracticePage();
-    document.body.classList.add(practice ? "iphone-practice-page" : "iphone-library-page");
-    const bar = document.createElement("div");
-    bar.id = "iphone-bar";
-    if (practice) {
-      bar.innerHTML = [
-        '<button type="button" data-iphone-action="passage" aria-pressed="false">文章</button>',
-        '<button type="button" data-iphone-action="questions" aria-pressed="true">题目</button>',
-        '<button type="button" data-iphone-action="smaller">A-</button>',
-        '<button type="button" data-iphone-action="larger">A+</button>',
-        '<button type="button" data-iphone-action="close">返回</button>'
-      ].join("");
-    } else {
-      const buttons = [
-        '<button type="button" data-iphone-action="import-bank">导入题库</button>',
-        '<button type="button" data-iphone-action="import-data">导入记录</button>',
-        '<button type="button" data-iphone-action="export-data">导出备份</button>'
-      ];
-      if (readActive()) {
-        buttons.push('<button type="button" data-iphone-action="use-sample">示例题</button>');
-      }
-      bar.innerHTML = buttons.join("");
-    }
-    const status = document.createElement("div");
-    status.id = "iphone-status";
-    status.dataset.state = "idle";
-    status.setAttribute("role", "status");
-    const bankInput = fileInput("iphone-bank-file", ".zip,application/zip");
-    const dataInput = fileInput("iphone-data-file", ".json,application/json");
-    document.body.append(bar, status, bankInput, dataInput);
-    if (practice) {
-      document.body.dataset.iphonePane = "questions";
-      rememberScroll();
-      watchResults();
-    }
-    bar.addEventListener("click", onBar);
-    bankInput.addEventListener("change", function () { if (bankInput.files[0]) importBank(bankInput.files[0]); bankInput.value = ""; });
-    dataInput.addEventListener("change", function () { if (dataInput.files[0]) importLearningData(dataInput.files[0]); dataInput.value = ""; });
-    if (location.pathname.indexOf("listening-practice") >= 0) {
-      setStatus("当前安装包没有听力音频或听力题。听力页会保持空白。", "error");
-    }
   }
 
   function fileInput(id, accept) {
@@ -169,6 +124,201 @@
     input.accept = accept;
     input.hidden = true;
     return input;
+  }
+
+  const TAB_ICONS = {
+    browse: '<svg class="iphone-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
+    practice: '<svg class="iphone-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 15"></polyline></svg>',
+    settings: '<svg class="iphone-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
+  };
+
+  function bankSummary() {
+    const active = readActive();
+    if (active) {
+      const count = Object.keys(active.manifest || {}).length;
+      return { isPrivate: true, pill: "私密 · " + count + " 篇", detail: "已加载私有阅读题库（共 " + count + " 篇，离线可用）" };
+    }
+    return { isPrivate: false, pill: "示例 · 3 篇", detail: "当前使用 3 篇内置示例题。可导入 reading-bank.zip 切换完整题库。" };
+  }
+
+  function setupLibraryChrome() {
+    const info = bankSummary();
+    if (!document.getElementById("iphone-top-bar")) {
+      const header = document.createElement("header");
+      header.id = "iphone-top-bar";
+      header.innerHTML =
+        '<h1 id="iphone-top-title">雅思阅读</h1>' +
+        '<button type="button" id="iphone-bank-pill" data-iphone-action="open-settings">' + info.pill + "</button>";
+      document.body.prepend(header);
+    }
+
+    const browseView = document.getElementById("browse-view");
+    const searchRow = browseView && browseView.querySelector(".search-row");
+    const freqFilter = (searchRow && searchRow.querySelector(".browse-frequency-filter")) || document.getElementById("browse-frequency-filter-buttons");
+    const learningControls = document.getElementById("browse-learning-controls");
+    if (searchRow && freqFilter && learningControls && !searchRow.querySelector(".iphone-filter-row")) {
+      const filterRow = document.createElement("div");
+      filterRow.className = "iphone-filter-row";
+      searchRow.appendChild(filterRow);
+      filterRow.appendChild(freqFilter);
+      filterRow.appendChild(learningControls);
+    }
+
+    const examList = document.getElementById("exam-list-container");
+    if (browseView && examList && !document.getElementById("iphone-bank-banner")) {
+      const banner = document.createElement("div");
+      banner.id = "iphone-bank-banner";
+      banner.hidden = info.isPrivate;
+      banner.innerHTML =
+        '<div class="iphone-bank-banner__text"><strong>内置 3 篇示例题</strong><span>导入 reading-bank.zip 解锁完整题库</span></div>' +
+        '<button type="button" class="iphone-bank-banner__btn" data-iphone-action="import-bank">导入题库</button>';
+      browseView.insertBefore(banner, examList);
+    }
+
+    const settingsView = document.getElementById("settings-view");
+    if (settingsView && !document.getElementById("iphone-settings-group")) {
+      const group = document.createElement("section");
+      group.id = "iphone-settings-group";
+      group.innerHTML = [
+        '<div class="iphone-settings-card">',
+        '  <div class="iphone-settings-card__header">题库管理</div>',
+        '  <div class="iphone-settings-status-row" id="iphone-bank-status-text"></div>',
+        '  <button type="button" class="iphone-settings-row-btn" data-iphone-action="import-bank"><span>导入阅读题库 (.zip)</span><small>选择文件</small></button>',
+        info.isPrivate ? '  <button type="button" class="iphone-settings-row-btn" data-iphone-action="use-sample"><span>切回内置示例</span><small>3 篇</small></button>' : "",
+        "</div>",
+        '<div class="iphone-settings-card">',
+        '  <div class="iphone-settings-card__header">学习记录与备份</div>',
+        '  <button type="button" class="iphone-settings-row-btn" data-iphone-action="import-data"><span>导入学习记录 (.json)</span><small>合并导入</small></button>',
+        '  <button type="button" class="iphone-settings-row-btn" data-iphone-action="export-data"><span>导出学习备份</span><small>分享 / 存储</small></button>',
+        "</div>"
+      ].join("");
+      group.querySelector("#iphone-bank-status-text").textContent = info.detail;
+      settingsView.prepend(group);
+    }
+
+    const TAB_LABELS = { browse: "题库浏览", practice: "练习记录", settings: "数据设置" };
+    const HEADER_TITLES = { browse: "雅思阅读", practice: "练习记录", settings: "题库与设置" };
+    const navButtons = document.querySelectorAll(".main-nav .hero-nav__btn[data-view]");
+    navButtons.forEach(function (button) {
+      const view = button.dataset.view;
+      if (!TAB_ICONS[view] || button.dataset.iphoneEnhanced === "1") return;
+      button.dataset.iphoneEnhanced = "1";
+      const label = TAB_LABELS[view] || button.textContent.trim();
+      button.innerHTML = TAB_ICONS[view] + "<span>" + label + "</span>";
+    });
+
+    function syncTopTitle() {
+      const activeBtn = document.querySelector(".main-nav .hero-nav__btn.active[data-view]");
+      const titleNode = document.getElementById("iphone-top-title");
+      if (activeBtn && titleNode) {
+        titleNode.textContent = HEADER_TITLES[activeBtn.dataset.view] || "雅思阅读";
+      }
+    }
+
+    const nav = document.querySelector(".main-nav.hero-nav");
+    if (nav) {
+      new MutationObserver(syncTopTitle).observe(nav, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    }
+    syncTopTitle();
+  }
+
+  function setupPracticeChrome() {
+    const headerLeft = document.querySelector(".header-left");
+    const details = document.querySelector(".candidate-details");
+    if (headerLeft && !document.getElementById("iphone-practice-back")) {
+      const backBtn = document.createElement("button");
+      backBtn.id = "iphone-practice-back";
+      backBtn.type = "button";
+      backBtn.dataset.iphoneAction = "close";
+      backBtn.setAttribute("aria-label", "返回题库");
+      backBtn.textContent = "‹ 返回";
+      headerLeft.prepend(backBtn);
+    }
+    if (details && !document.getElementById("iphone-practice-title")) {
+      const titleSpan = document.createElement("div");
+      titleSpan.id = "iphone-practice-title";
+      const examTitle = document.getElementById("exam-title");
+      titleSpan.textContent = (examTitle && examTitle.textContent) || document.title || "阅读练习";
+      details.prepend(titleSpan);
+      if (examTitle) {
+        new MutationObserver(function () {
+          titleSpan.textContent = examTitle.textContent || document.title || "阅读练习";
+        }).observe(examTitle, { childList: true, characterData: true, subtree: true });
+      }
+    }
+
+    function syncPartSections() {
+      const sections = [...document.querySelectorAll(".part-nav-section")];
+      const nonEmpty = [];
+      sections.forEach(function (section) {
+        const hasButtons = section.querySelector(".part-nav-questions")?.children.length > 0;
+        section.classList.toggle("iphone-part-empty", !hasButtons);
+        if (hasButtons) nonEmpty.push(section);
+      });
+      const activeNonEmpty = nonEmpty.find(function (section) {
+        return section.classList.contains("active");
+      });
+      sections.forEach(function (section) {
+        const show = !section.classList.contains("iphone-part-empty") && (!activeNonEmpty || section === activeNonEmpty);
+        section.classList.toggle("iphone-part-show", show);
+      });
+    }
+
+    const nav = document.querySelector(".practice-nav");
+    if (nav) {
+      new MutationObserver(syncPartSections).observe(nav, { childList: true, subtree: true });
+      syncPartSections();
+    }
+  }
+
+  function bootUi() {
+    if (document.getElementById("iphone-status")) return;
+    const practice = isPracticePage();
+    document.body.classList.add(practice ? "iphone-practice-page" : "iphone-library-page");
+
+    const status = document.createElement("div");
+    status.id = "iphone-status";
+    status.dataset.state = "idle";
+    status.setAttribute("role", "status");
+    const bankInput = fileInput("iphone-bank-file", ".zip,application/zip");
+    const dataInput = fileInput("iphone-data-file", ".json,application/json");
+    document.body.append(status, bankInput, dataInput);
+
+    if (practice) {
+      const bar = document.createElement("div");
+      bar.id = "iphone-bar";
+      bar.innerHTML = [
+        '<button type="button" data-iphone-action="passage" aria-pressed="false">文章</button>',
+        '<button type="button" data-iphone-action="questions" aria-pressed="true">题目</button>',
+        '<button type="button" data-iphone-action="smaller">A-</button>',
+        '<button type="button" data-iphone-action="larger">A+</button>',
+        '<button type="button" data-iphone-action="close">返回</button>'
+      ].join("");
+      document.body.append(bar);
+      setupPracticeChrome();
+      document.body.dataset.iphonePane = "questions";
+      rememberScroll();
+      watchResults();
+    } else {
+      setupLibraryChrome();
+    }
+
+    document.addEventListener("click", function (event) {
+      const actionBtn = event.target.closest && event.target.closest("[data-iphone-action]");
+      if (actionBtn) {
+        onAction(actionBtn.dataset.iphoneAction);
+      }
+      const jumpBtn = practice && event.target.closest && event.target.closest("[data-result-question-id]");
+      if (jumpBtn) {
+        showPane("passage");
+      }
+    });
+
+    bankInput.addEventListener("change", function () { if (bankInput.files[0]) importBank(bankInput.files[0]); bankInput.value = ""; });
+    dataInput.addEventListener("change", function () { if (dataInput.files[0]) importLearningData(dataInput.files[0]); dataInput.value = ""; });
+    if (location.pathname.indexOf("listening-practice") >= 0) {
+      setStatus("当前安装包没有听力音频或听力题。听力页会保持空白。", "error");
+    }
   }
 
   const scrollMemory = { left: 0, right: 0 };
@@ -211,19 +361,21 @@
     requestAnimationFrame(restore);
   }
 
-  let zoom = 1;
-  function onBar(event) {
-    const button = event.target.closest("[data-iphone-action]");
-    if (!button) return;
-    const action = button.dataset.iphoneAction;
+  let fontSizePx = 16;
+  function onAction(action) {
     if (action === "passage" || action === "questions") showPane(action);
     if (action === "smaller" || action === "larger") {
-      zoom = Math.min(1.6, Math.max(0.85, zoom + (action === "larger" ? 0.1 : -0.1)));
-      document.documentElement.style.zoom = String(zoom);
+      fontSizePx = Math.min(22, Math.max(13, fontSizePx + (action === "larger" ? 1 : -1)));
+      document.documentElement.style.setProperty("--iphone-read-size", fontSizePx + "px");
+      setStatus("字号 " + fontSizePx + "px", "idle");
     }
     if (action === "import-bank") document.getElementById("iphone-bank-file").click();
     if (action === "import-data") document.getElementById("iphone-data-file").click();
     if (action === "export-data") exportLearningData();
+    if (action === "open-settings") {
+      const settingsBtn = document.querySelector('.main-nav .nav-btn[data-view="settings"]');
+      if (settingsBtn) settingsBtn.click();
+    }
     if (action === "use-sample") { localStorage.removeItem(KEY); setStatus("已改回示例题。", "success"); location.reload(); }
     if (action === "close") {
       window.close();
@@ -240,7 +392,7 @@
       selected = item;
       document.querySelectorAll(".iphone-selected").forEach(function (node) { node.classList.remove("iphone-selected"); });
       item.classList.add("iphone-selected");
-      setStatus("已选中选项，再点答案框。", "idle");
+      setStatus("已选中选项，请点目标空格。", "idle");
       return;
     }
     if (zone && selected) {
@@ -253,6 +405,7 @@
       }
       selected.classList.remove("iphone-selected");
       selected = null;
+      setStatus("", "idle");
     }
   }, true);
 
@@ -338,7 +491,7 @@
       const recorder = await ensureRecorderReady();
       const receipt = await recorder.importData(data, { merge: true });
       if (!receipt || receipt.committed !== true) throw new Error("学习数据没有提交成功");
-      setStatus("学习数据已导入。电脑上的记录不会自动同步，这次是手动导入。", "success");
+      setStatus("学习数据已导入。", "success");
     } catch (error) {
       setStatus(error && error.message ? error.message : "学习数据导入失败。", "error");
     }

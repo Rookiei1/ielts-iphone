@@ -1,89 +1,1098 @@
-:root { --iphone-keyboard: 0px; }
-html { -webkit-text-size-adjust: 100%; }
-body.iphone-library-page {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
+:root {
+  --iphone-keyboard: 0px;
+  --iphone-bg: #f2f2f7;
+  --iphone-card: #ffffff;
+  --iphone-surface: #e5e5ea;
+  --iphone-ink: #1c1c1e;
+  --iphone-muted: #6e6e73;
+  --iphone-line: rgba(60, 60, 67, 0.14);
+  --iphone-blue: #007aff;
+  --iphone-blue-soft: rgba(0, 122, 255, 0.12);
+  --iphone-green: #248a3d;
+  --iphone-green-soft: #e8f7ed;
+  --iphone-red: #d70015;
+  --iphone-red-soft: #ffe9eb;
+  --iphone-read-size: 16px;
 }
-body.iphone-practice-page {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: calc(56px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
-  box-sizing: border-box;
+
+html {
+  -webkit-text-size-adjust: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 }
-#iphone-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 100000;
-  display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-around; gap: 6px;
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  background: #102033; color: #fff;
-}
-#iphone-bar button {
-  flex: 1 1 0; border: 0; border-radius: 999px; background: #1d4f73; color: #fff;
-  min-height: 38px; padding: 6px 8px; font-size: 13px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-#iphone-bar button[aria-pressed="true"] {
-  background: #2c7bb6;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
-  font-weight: 700;
-}
+
+/* ==========================================================================
+   Toast / Status Pill (shared)
+   ========================================================================== */
 #iphone-status {
-  position: fixed; left: 10px; right: 10px; bottom: calc(64px + env(safe-area-inset-bottom));
-  z-index: 100001; padding: 8px 12px; border-radius: 12px; background: #fff8e8; color: #3b2a00;
-  font-size: 13px;
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(82px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
+  z-index: 100001;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(28, 28, 30, 0.92);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
   pointer-events: none;
 }
-#iphone-status:empty, #iphone-status[data-state="idle"]:empty { display: none; }
-#iphone-status[data-state="error"] { background: #ffe4e4; color: #6b1010; }
-#iphone-status[data-state="success"], #iphone-status[data-state="duplicate"] { background: #e5f6ea; color: #0d3b18; }
-.iphone-selected { outline: 3px solid #f5b942; }
-.iphone-listening-empty, .iphone-explanation-note { margin: 12px; padding: 12px; background: #f4f7fb; border-radius: 12px; }
-@media (max-width: 900px) {
-  body.iphone-library-page .hero-shell {
-    padding: calc(10px + env(safe-area-inset-top)) 12px calc(72px + env(safe-area-inset-bottom)) !important;
-    gap: 12px !important;
-  }
-  body.iphone-library-page .hero-header { gap: 4px !important; }
-  body.iphone-library-page .hero-brand-title { margin: 0 !important; row-gap: 4px !important; }
-  body.iphone-library-page .hero-brand-text { font-size: 1.55rem !important; line-height: 1.2 !important; }
-  body.iphone-library-page .main-nav.hero-nav {
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    width: 100% !important;
-    padding: 4px !important;
-    gap: 4px !important;
-    border-radius: 16px !important;
-  }
-  body.iphone-library-page .hero-nav__btn {
-    flex: 1 1 0 !important;
-    width: auto !important;
-    max-width: none !important;
-    min-height: 40px !important;
-    padding: 8px 6px !important;
-    font-size: 14px !important;
-    white-space: nowrap !important;
-  }
-  body.iphone-library-page .hero-nav__btn[hidden] { display: none !important; }
-  body.iphone-library-page .hero-panel { padding: 14px 12px !important; border-radius: 18px !important; }
-  body.iphone-library-page .message-container {
-    top: calc(8px + env(safe-area-inset-top)) !important;
-    pointer-events: none !important;
-  }
-  body.iphone-practice-page .shell {
-    display: block !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  body.iphone-practice-page #divider { display: none !important; }
-  body.iphone-practice-page #left,
-  body.iphone-practice-page #right {
-    width: 100% !important;
-    max-width: none !important;
-    height: 100% !important;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 84px !important;
-  }
-  body[data-iphone-pane="passage"] #right { display: none !important; }
-  body[data-iphone-pane="questions"] #left { display: none !important; }
-  .drag-item, .match-dropzone, .paragraph-dropzone { min-height: 44px; }
+
+#iphone-status:empty,
+#iphone-status[data-state="idle"]:empty {
+  display: none;
+}
+
+#iphone-status[data-state="error"] {
+  background: var(--iphone-red-soft);
+  color: #8c0b16;
+  border: 1px solid rgba(215, 0, 21, 0.2);
+}
+
+#iphone-status[data-state="success"],
+#iphone-status[data-state="duplicate"] {
+  background: var(--iphone-green-soft);
+  color: #0e4f21;
+  border: 1px solid rgba(36, 138, 61, 0.2);
+}
+
+.iphone-selected {
+  outline: 2.5px solid var(--iphone-blue) !important;
+  background: var(--iphone-blue-soft) !important;
+}
+
+.iphone-listening-empty,
+.iphone-explanation-note {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: #f2f2f7;
+  color: var(--iphone-ink);
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   iOS Library / Records / Settings Shell
+   ========================================================================== */
+body.iphone-library-page,
+body.iphone-library-page[data-theme] {
+  background: var(--iphone-bg) !important;
+  background-image: none !important;
+  color: var(--iphone-ink) !important;
+  margin: 0 !important;
+  padding: 0 0 calc(72px + env(safe-area-inset-bottom) + var(--iphone-keyboard)) !important;
+  min-height: 100dvh;
+  overflow-x: hidden !important;
+}
+
+/* Strip all desktop wallpapers, boot splash, and desktop-only clutter */
+body.iphone-library-page::before,
+body.iphone-library-page::after,
+body.iphone-library-page #shui-three-bg,
+body.iphone-library-page #boot-overlay,
+body.iphone-library-page .newjeans-bg-container,
+body.iphone-library-page .ascii-bg-container,
+body.iphone-library-page .hero-header,
+body.iphone-library-page .browse-title-bar,
+body.iphone-library-page #type-filter-buttons,
+body.iphone-library-page .hero-nav__btn[hidden],
+body.iphone-library-page .exam-item-action-btn[data-action="pdf"]:not([data-has-pdf="true"]),
+body.iphone-library-page .data-management-panel,
+body.iphone-library-page .settings-system-panel,
+body.iphone-library-page #theme-switcher-modal,
+body.iphone-library-page .clock-modal {
+  display: none !important;
+}
+
+/* Fixed Safe-Area Frosted iOS Top Navbar (prevents Dynamic Island collision) */
+#iphone-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top) + 8px) 16px 10px;
+  background: rgba(242, 242, 247, 0.9);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--iphone-line);
+}
+
+#iphone-top-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--iphone-ink);
+  line-height: 1.2;
+}
+
+#iphone-bank-pill {
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--iphone-blue);
+  background: var(--iphone-blue-soft);
+  white-space: nowrap;
+}
+
+body.iphone-library-page #app.container.hero-shell {
+  width: 100% !important;
+  max-width: 680px !important;
+  margin: 0 auto !important;
+  padding: calc(env(safe-area-inset-top) + 58px) 14px 16px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+}
+
+body.iphone-library-page .hero-panel,
+body.iphone-library-page .hero-section {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+body.iphone-library-page .hero-panel__header {
+  display: none !important;
+}
+
+body.iphone-library-page .message-container {
+  top: calc(env(safe-area-inset-top) + 56px) !important;
+  bottom: auto !important;
+  left: 16px !important;
+  right: 16px !important;
+  transform: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  pointer-events: none !important;
+  z-index: 95 !important;
+}
+
+body.iphone-library-page .message-container .message.success,
+body.iphone-library-page .message-container .message.info,
+body.iphone-library-page .message-container .message.message-exiting {
+  display: none !important;
+}
+
+body.iphone-library-page .message-container .message {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: calc(100vw - 48px) !important;
+  transform: none !important;
+  background: #ffffff !important;
+  color: var(--iphone-ink) !important;
+  border: 0.5px solid rgba(255, 59, 48, 0.25) !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+body.iphone-library-page .message-container .message-text {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+  filter: none !important;
+  color: inherit !important;
+}
+
+/* Sample Bank Quick-Import Callout Card */
+#iphone-bank-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #eaf3ff;
+  border: 1px solid rgba(0, 122, 255, 0.2);
+  border-radius: 14px;
+}
+
+#iphone-bank-banner[hidden] {
+  display: none !important;
+}
+
+.iphone-bank-banner__text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0b3d75;
+}
+
+.iphone-bank-banner__text span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #345c8a;
+}
+
+.iphone-bank-banner__btn {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--iphone-blue);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+/* Clean iOS Search & Single-Row Filter Strip */
+body.iphone-library-page #browse-view .search-box {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 0 10px !important;
+}
+
+body.iphone-library-page #browse-view .search-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+
+body.iphone-library-page #browse-view .search-input-wrap {
+  flex: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+body.iphone-library-page #browse-view #exam-search-input.search-input {
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 8px 36px 8px 14px !important;
+  border-radius: 12px !important;
+  border: 0 !important;
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: var(--iphone-ink) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+}
+
+body.iphone-library-page #browse-view #exam-search-input.search-input::placeholder {
+  color: var(--iphone-muted) !important;
+  font-weight: 400 !important;
+}
+
+body.iphone-library-page #browse-view .iphone-filter-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+body.iphone-library-page #browse-view .browse-frequency-filter {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  scrollbar-width: none;
+  padding: 2px 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 0 !important;
+}
+
+body.iphone-library-page .browse-frequency-filter::-webkit-scrollbar {
+  display: none;
+}
+
+body.iphone-library-page .browse-frequency-chip,
+body.iphone-library-page #browse-learning-trigger {
+  flex: 0 0 auto !important;
+  border-radius: 999px !important;
+  min-height: 32px !important;
+  padding: 5px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  background: var(--iphone-card) !important;
+  color: var(--iphone-ink) !important;
+  border: 0.5px solid var(--iphone-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  white-space: nowrap !important;
+}
+
+body.iphone-library-page .browse-frequency-chip.active,
+body.iphone-library-page .browse-frequency-chip[aria-pressed="true"] {
+  background: var(--iphone-blue) !important;
+  color: #ffffff !important;
+  border-color: var(--iphone-blue) !important;
+}
+
+body.iphone-library-page .browse-learning-controls {
+  flex: 0 0 auto !important;
+  position: relative;
+}
+
+body.iphone-library-page #browse-learning-panel {
+  border-radius: 14px !important;
+  background: var(--iphone-card) !important;
+  border: 0.5px solid var(--iphone-line) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.iphone-library-page #browse-view #search-clear-btn {
+  background: rgba(60, 60, 67, 0.22) !important;
+  color: #ffffff !important;
+  border-radius: 999px !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  padding: 0 !important;
+}
+
+/* Redesigned iOS Exam List Cards */
+body.iphone-library-page #exam-list-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+body.iphone-library-page .exam-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 14px !important;
+  margin: 0 !important;
+  background: var(--iphone-card) !important;
+  border-radius: 14px !important;
+  border: 0.5px solid rgba(60, 60, 67, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.iphone-library-page .exam-item .exam-info {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+body.iphone-library-page .exam-item .exam-info-content {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+body.iphone-library-page .exam-item .exam-title-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+body.iphone-library-page .exam-item .exam-title-row h3,
+body.iphone-library-page .exam-item .exam-title {
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  color: var(--iphone-ink) !important;
+}
+
+body.iphone-library-page .exam-item .exam-meta {
+  display: inline-block !important;
+  margin-top: 6px !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  background: var(--iphone-bg) !important;
+  color: var(--iphone-muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+}
+
+body.iphone-library-page .exam-actions,
+body.iphone-library-page .exam-actions.has-vocab-btn {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding-top: 2px !important;
+}
+
+body.iphone-library-page .exam-actions .exam-item-action-btn {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-height: 34px !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body.iphone-library-page .exam-actions .exam-item-action-btn[data-action="start"] {
+  background: var(--iphone-blue) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  order: 2;
+}
+
+body.iphone-library-page .exam-actions .exam-item-vocab-btn {
+  background: var(--iphone-blue-soft) !important;
+  color: var(--iphone-blue) !important;
+  border: 0 !important;
+  order: 1;
+}
+
+/* Practice Records View */
+body.iphone-library-page .practice-stats.hero-grid--stats {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows: auto !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+body.iphone-library-page .hero-card--stat {
+  min-height: 0 !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  background: var(--iphone-card) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  border: 0.5px solid rgba(60, 60, 67, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.iphone-library-page .hero-card__label {
+  font-size: 12px !important;
+  color: var(--iphone-muted) !important;
+}
+
+body.iphone-library-page .hero-card__value {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--iphone-ink) !important;
+  margin: 4px 0 2px !important;
+}
+
+body.iphone-library-page .hero-card__meta {
+  font-size: 11px !important;
+  color: var(--iphone-muted) !important;
+}
+
+body.iphone-library-page .practice-insights-grid {
+  display: none !important;
+}
+
+body.iphone-library-page #history-list.practice-history-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+body.iphone-library-page #history-list .history-item.history-record-item {
+  background: var(--iphone-card) !important;
+  border: 0.5px solid rgba(60, 60, 67, 0.08) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  height: auto !important;
+  min-height: 76px !important;
+}
+
+body.iphone-library-page #history-list .record-info {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+body.iphone-library-page #history-list .practice-record-title {
+  display: block !important;
+  color: var(--iphone-ink) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.iphone-library-page #history-list .record-meta-line {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-top: 5px !important;
+}
+
+body.iphone-library-page #history-list .record-date,
+body.iphone-library-page #history-list .record-duration-value {
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  color: var(--iphone-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+}
+
+body.iphone-library-page #history-list .record-percentage-container {
+  flex: 0 0 auto !important;
+}
+
+body.iphone-library-page #history-list .record-percentage {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+body.iphone-library-page #history-list .delete-record-btn {
+  background: var(--iphone-surface) !important;
+  color: var(--iphone-muted) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Settings & Native Import Inset Grouped Cards */
+.iphone-settings-card {
+  background: var(--iphone-card);
+  border-radius: 14px;
+  border: 0.5px solid rgba(60, 60, 67, 0.08);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.iphone-settings-card__header {
+  padding: 12px 14px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--iphone-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.iphone-settings-status-row {
+  padding: 4px 14px 12px;
+  font-size: 14px;
+  color: var(--iphone-ink);
+  line-height: 1.45;
+  border-bottom: 0.5px solid var(--iphone-line);
+}
+
+.iphone-settings-row-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  background: #ffffff;
+  border: 0;
+  border-bottom: 0.5px solid var(--iphone-line);
+  color: var(--iphone-blue);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.iphone-settings-row-btn:last-child {
+  border-bottom: 0;
+}
+
+.iphone-settings-row-btn small {
+  color: var(--iphone-muted);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+body.iphone-library-page .diagnostic-settings-panel {
+  background: var(--iphone-card) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  border: 0.5px solid rgba(60, 60, 67, 0.08) !important;
+}
+
+/* Restyle Legacy Settings Actions Into Native iOS Grouped List & Hide Desktop Clutter */
+body.iphone-library-page #settings-view .hero-panel:has(.settings-system-info),
+body.iphone-library-page #settings-view .system-management-panel h3,
+body.iphone-library-page #settings-view .system-management-panel .hero-panel__muted,
+body.iphone-library-page #settings-view #theme-switcher-btn-entry,
+body.iphone-library-page #settings-view #library-manager-btn {
+  display: none !important;
+}
+
+body.iphone-library-page #settings-view .system-management-panel {
+  background: var(--iphone-card) !important;
+  border-radius: 14px !important;
+  border: 0.5px solid rgba(60, 60, 67, 0.08) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+body.iphone-library-page #settings-view .hero-settings-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+body.iphone-library-page #settings-view .hero-settings-actions .btn {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 13px 14px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 0.5px solid var(--iphone-line) !important;
+  background: #ffffff !important;
+  color: var(--iphone-blue) !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  box-shadow: none !important;
+}
+
+body.iphone-library-page #settings-view .hero-settings-actions #clear-cache-btn {
+  color: var(--iphone-red) !important;
+  order: 2;
+  border-bottom: 0 !important;
+}
+
+body.iphone-library-page #settings-view .hero-settings-actions #practice-settings-entry-btn {
+  order: 1;
+}
+
+/* Unified Single Bottom iOS Tab Bar (.main-nav.hero-nav) */
+body.iphone-library-page .main-nav.hero-nav {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 950 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  justify-content: space-around !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.18) !important;
+  background: rgba(249, 249, 251, 0.94) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  box-shadow: none !important;
+  gap: 4px !important;
+}
+
+body.iphone-library-page .main-nav.hero-nav .hero-nav__liquid-indicator,
+body.iphone-library-page .main-nav.hero-nav .hero-nav-liquid-indicator,
+body.iphone-library-page #iphone-bar {
+  display: none !important;
+}
+
+body.iphone-library-page .hero-nav__btn {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  min-height: 44px !important;
+  padding: 4px 6px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--iphone-muted) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  transition: none !important;
+}
+
+body.iphone-library-page .hero-nav__btn:not(.active),
+body.iphone-library-page .hero-nav__btn:not(.active):hover,
+body.iphone-library-page .hero-nav__btn:not(.active):focus {
+  color: var(--iphone-muted) !important;
+}
+
+body.iphone-library-page .hero-nav__btn.active {
+  color: var(--iphone-blue) !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+}
+
+body.iphone-library-page .iphone-tab-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* Fullscreen Vocab Reader Safe-Area Fix */
+.vocab-reader-header {
+  padding-top: calc(10px + env(safe-area-inset-top)) !important;
+}
+
+/* ==========================================================================
+   iOS Practice View (Full-Height Flex Column — Never Collapses to Blank)
+   ========================================================================== */
+html:has(body.iphone-practice-page),
+body.iphone-practice-page {
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+body.iphone-practice-page {
+  display: flex !important;
+  flex-direction: column !important;
+  color: var(--iphone-ink) !important;
+}
+
+body.iphone-practice-page .header {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  height: auto !important;
+  min-height: 46px !important;
+  padding: calc(env(safe-area-inset-top) + 6px) 10px 8px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 0.5px solid var(--iphone-line) !important;
+}
+
+body.iphone-practice-page .ielts-brand,
+body.iphone-practice-page #candidate-id,
+body.iphone-practice-page #connection-indicator,
+body.iphone-practice-page #messages-indicator,
+body.iphone-practice-page .sub-header-bar,
+body.iphone-practice-page #divider,
+body.iphone-practice-page #floating-passage-nav {
+  display: none !important;
+}
+
+body.iphone-practice-page .header-left {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+#iphone-practice-back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--iphone-bg);
+  color: var(--iphone-blue);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+body.iphone-practice-page .candidate-details {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+#iphone-practice-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--iphone-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.iphone-practice-page #timer {
+  flex: 0 0 auto !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  background: var(--iphone-bg) !important;
+  color: var(--iphone-ink) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+}
+
+body.iphone-practice-page .header-right {
+  flex: 0 0 auto !important;
+  gap: 2px !important;
+}
+
+body.iphone-practice-page .header-btn {
+  width: 38px !important;
+  flex-basis: 38px !important;
+  height: 36px !important;
+}
+
+/* Middle Content Shell: Absolute inset inside flex: 1 guarantees non-zero height in WKWebView */
+body.iphone-practice-page .shell {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  position: relative !important;
+  display: block !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+}
+
+body.iphone-practice-page #left,
+body.iphone-practice-page #right {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 16px 18px 28px !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+  font-size: var(--iphone-read-size) !important;
+  line-height: 1.68 !important;
+}
+
+body.iphone-practice-page[data-iphone-pane="passage"] #right {
+  display: none !important;
+}
+
+body.iphone-practice-page[data-iphone-pane="questions"] #left {
+  display: none !important;
+}
+
+body.iphone-practice-page #left h2,
+body.iphone-practice-page #left h3 {
+  font-size: 1.2em !important;
+  margin: 0 0 12px !important;
+  color: var(--iphone-ink) !important;
+}
+
+body.iphone-practice-page #left p {
+  line-height: 1.7 !important;
+  margin: 0 0 14px !important;
+}
+
+body.iphone-practice-page #right .unified-group,
+body.iphone-practice-page #right .group {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+body.iphone-practice-page #right input[type="text"] {
+  font-size: 16px !important;
+  min-height: 36px !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid #c7c7cc !important;
+  max-width: 100% !important;
+}
+
+body.iphone-practice-page #right label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 4px 10px 4px 4px;
+  margin: 2px 6px 2px 0;
+  border-radius: 8px;
+}
+
+.drag-item,
+.match-dropzone,
+.paragraph-dropzone {
+  min-height: 42px;
+}
+
+/* Question Nav Strip + Submit */
+body.iphone-practice-page .practice-nav {
+  flex: 0 0 auto !important;
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 44px !important;
+  padding: 6px 12px !important;
+  background: #f9fafb !important;
+  border-top: 0.5px solid var(--iphone-line) !important;
+}
+
+body.iphone-practice-page .part-nav-status,
+body.iphone-practice-page .part-nav-info,
+body.iphone-practice-page .part-nav-section:not(.iphone-part-show),
+body.iphone-practice-page .part-nav-section.iphone-part-empty {
+  display: none !important;
+}
+
+body.iphone-practice-page .part-nav-section.iphone-part-show {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+body.iphone-practice-page .part-nav-questions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 6px !important;
+  width: 100% !important;
+  scrollbar-width: none;
+}
+
+body.iphone-practice-page .part-nav-questions::-webkit-scrollbar {
+  display: none;
+}
+
+body.iphone-practice-page .nav-controls-right {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+body.iphone-practice-page #exit-btn,
+body.iphone-practice-page #reset-btn {
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  background: var(--iphone-surface) !important;
+  color: var(--iphone-ink) !important;
+  border: 0 !important;
+}
+
+body.iphone-practice-page #submit-btn {
+  min-width: 44px !important;
+  height: 34px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  background: var(--iphone-blue) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Clean Frosted Bottom Toolbar on Practice Page */
+body.iphone-practice-page #iphone-bar {
+  flex: 0 0 auto;
+  position: static;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
+  background: rgba(249, 249, 251, 0.96);
+  border-top: 0.5px solid var(--iphone-line);
+  color: var(--iphone-ink);
+}
+
+body.iphone-practice-page #iphone-bar button {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--iphone-surface);
+  color: var(--iphone-ink);
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+body.iphone-practice-page #iphone-bar button[aria-pressed="true"] {
+  background: var(--iphone-blue);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
