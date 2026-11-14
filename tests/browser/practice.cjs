@@ -33,7 +33,15 @@ async function answerHarbor(popup) {
   await popup.locator('input[name="q6"][value="NOT GIVEN"]').check();
   await popup.locator("#submit-btn").click();
   await popup.getByText("得分 6 / 6").waitFor({ timeout: 15000 });
+  const articleBtn = popup.getByRole("button", { name: "文章" });
+  if (await articleBtn.isVisible().catch(() => false)) {
+    await articleBtn.click();
+  }
   await popup.getByText("原创解析：笔记放在码头边的棚屋里").waitFor({ timeout: 15000 });
+  const questionsBtn = popup.getByRole("button", { name: "题目" });
+  if (await questionsBtn.isVisible().catch(() => false)) {
+    await questionsBtn.click();
+  }
   await popup.locator("#submit-btn").click({ timeout: 3000 }).catch(() => {});
 }
 
