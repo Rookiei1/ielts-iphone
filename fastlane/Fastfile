@@ -94,10 +94,16 @@ platform :ios do
     }
     cert_id = ENV["SIGNING_CERTIFICATE_ID"].to_s.strip
     opts[:cert_id] = cert_id unless cert_id.empty?
-    profile_path = get_provisioning_profile(opts)
+    udid = get_provisioning_profile(opts).to_s
+    path = lane_context[SharedValues::SIGH_PROFILE_PATH].to_s
+    path = ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-path"].to_s if path.empty? || !File.exist?(path)
+    path = Dir.glob(File.join(profile_dir, "*.mobileprovision")).first.to_s if path.empty? || !File.exist?(path)
+    name = (lane_context[SharedValues::SIGH_NAME] || ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-name"]).to_s
+    name = "match AppStore #{APP_IDENTIFIER}" if name.empty?
     {
-      path: profile_path.to_s.empty? ? ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-path"].to_s : profile_path.to_s,
-      name: (lane_context[SharedValues::SIGH_NAME] || ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-name"]).to_s
+      udid: udid,
+      path: path,
+      name: name
     }
   end
 
@@ -222,7 +228,6 @@ platform :ios do
     unless current_cf_bundle_version.start_with?("$(")
       set_info_plist_value(path: INFO_PLIST_PATH, key: "CFBundleVersion", value: build_number)
     end
-    increment_build_number(xcodeproj: PROJECT_PATH, build_number: build_number)
 
     release_dir = File.expand_path("../build/release", __dir__)
     FileUtils.mkdir_p(release_dir)
@@ -247,7 +252,7 @@ platform :ios do
         method: "app-store-connect",
         signingStyle: "manual",
         teamID: TEAM_ID,
-        signingCertificate: identity[:sha1],
+        signingCertificate: "Apple Distribution",
         provisioningProfiles: {
           APP_IDENTIFIER => profile_name
         }
