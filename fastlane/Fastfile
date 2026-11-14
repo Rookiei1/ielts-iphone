@@ -1,0 +1,249 @@
+# frozen_string_literal: true
+
+require "open3"
+require "spaceship"
+require_relative "../ci/signing_identity"
+
+APP_IDENTIFIER = "com.rookiei1.ieltspractice"
+TEAM_ID = "NGV55K28X8"
+SKU = "ielts-iphone-001"
+PRIMARY_LANGUAGE = "zh-Hans"
+SIGNING_BRANCH = "signing-assets-v2"
+PROJECT_PATH = File.expand_path("../ios/App/App.xcodeproj", __dir__)
+INFO_PLIST_PATH = File.expand_path("../ios/App/App/Info.plist", __dir__)
+SCHEME = "App"
+MARKETING_VERSION = "1.0.0"
+
+default_platform(:ios)
+
+platform :ios do
+  def prepare_asc_api_key
+    filepath = ENV["ASC_KEY_FILEPATH"].to_s
+    UI.user_error!("Missing ASC_KEY_FILEPATH; run python3 ci/prepare_apple_key.py first") if filepath.empty? || !File.exist?(filepath)
+
+    api_key = app_store_connect_api_key(
+      filepath: filepath,
+      in_house: false
+    )
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.from(hash: api_key)
+    api_key
+  end
+
+  def keychain_name
+    ENV["MATCH_KEYCHAIN_NAME"].to_s.empty? ? "ielts_ci_signing.keychain-db" : ENV["MATCH_KEYCHAIN_NAME"]
+  end
+
+  def keychain_password
+    pwd = ENV["MATCH_KEYCHAIN_PASSWORD"].to_s
+    pwd.empty? ? "ci-temp-keychain-#{Process.pid}" : pwd
+  end
+
+  def recreate_signing_keychain
+    name = keychain_name
+    pwd = keychain_password
+    delete_keychain(name: name) if File.exist?(File.expand_path("~/Library/Keychains/#{name}"))
+    create_keychain(
+      name: name,
+      password: pwd,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleep: false
+    )
+    File.expand_path("~/Library/Keychains/#{name}")
+  end
+
+  def match_options(api_key:, readonly:)
+    store_url = ENV["SIGNING_STORE_URL"].to_s
+    ssh_key = ENV["SIGNING_SSH_KEY_PATH"].to_s
+    UI.user_error!("Missing SIGNING_STORE_URL") if store_url.empty?
+    UI.user_error!("Missing SIGNING_SSH_KEY_PATH") if ssh_key.empty? || !File.exist?(ssh_key)
+    UI.user_error!("Missing MATCH_PASSWORD") if ENV["MATCH_PASSWORD"].to_s.empty?
+
+    {
+      type: "appstore",
+      app_identifier: [APP_IDENTIFIER],
+      team_id: TEAM_ID,
+      git_url: store_url,
+      git_branch: SIGNING_BRANCH,
+      git_private_key: ssh_key,
+      readonly: readonly,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      api_key: api_key,
+      verbose: true
+    }
+  end
+
+  def distribution_certificates
+    Spaceship::ConnectAPI::Certificate.all(filter: { certificateType: "DISTRIBUTION,IOS_DISTRIBUTION" })
+  end
+
+  def resolve_next_build_number(api_key)
+    override = ENV["BUILD_NUMBER_OVERRIDE"].to_s.strip
+    return override unless override.empty?
+
+    latest = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      initial_build_number: 0
+    )
+    (latest.to_i + 1).to_s
+  end
+
+  def ensure_expected_cert_present!(certs)
+    expected_id = ENV["SIGNING_CERTIFICATE_ID"].to_s.strip
+    cert_ids = certs.map(&:id)
+    UI.message("Apple Developer distribution certificates: #{certs.map { |c| "#{c.id}(#{c.certificate_type}, exp=#{c.expiration_date})" }.join(', ')}")
+    return if expected_id.empty?
+
+    unless cert_ids.include?(expected_id)
+      UI.user_error!("Expected SIGNING_CERTIFICATE_ID=#{expected_id} was not found in active Apple distribution certificates: #{cert_ids.inspect}")
+    end
+  end
+
+  desc "Read-only preflight check for Apple registration, ASC app record, certificates, and match signing assets"
+  lane :diagnose do
+    api_key = prepare_asc_api_key
+    bundle_id = Spaceship::ConnectAPI::BundleId.find(APP_IDENTIFIER)
+    asc_app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    certs = distribution_certificates
+
+    UI.message("=== Apple Account Preflight ===")
+    UI.message("Team ID: #{TEAM_ID}")
+    UI.message("Bundle ID (#{APP_IDENTIFIER}): #{bundle_id ? "PRESENT (id=#{bundle_id.id})" : 'MISSING'}")
+    UI.message("App Store Connect App (#{APP_IDENTIFIER}): #{asc_app ? "PRESENT (id=#{asc_app.id}, name=#{asc_app.name})" : 'MISSING'}")
+    ensure_expected_cert_present!(certs)
+
+    UI.user_error!("Developer Portal App ID #{APP_IDENTIFIER} is missing.") unless bundle_id
+    if asc_app.nil?
+      UI.user_error!(
+        "App Store Connect app record is MISSING for #{APP_IDENTIFIER}. " \
+        "Create it in App Store Connect (https://appstoreconnect.apple.com/apps) with " \
+        "Platform=iOS, Name='IELTS Practice', Language='简体中文', BundleID='#{APP_IDENTIFIER}', SKU='#{SKU}', Team='#{TEAM_ID}'."
+      )
+    end
+
+    keychain_path = recreate_signing_keychain
+    begin
+      match(match_options(api_key: api_key, readonly: true))
+      identity = SigningIdentity.resolve_distribution_identity(expected_team: TEAM_ID, keychain_path: keychain_path)
+      profile_path = ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-path"].to_s
+      ENV["SIGNING_IDENTITY_SHA1"] = identity[:sha1]
+      sh("bundle", "exec", "ruby", File.expand_path("../ci/test_profile_certificates.rb", __dir__), profile_path)
+      UI.success("PROFILE_STATUS=PRESENT (#{ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-name"]})")
+    rescue => err
+      UI.important("Read-only match check did not find a ready profile for #{APP_IDENTIFIER}: #{err.message}")
+      UI.important("PROFILE_STATUS=NEEDS_BOOTSTRAP (reusing existing certificate #{ENV['SIGNING_CERTIFICATE_ID']})")
+    end
+  end
+
+  desc "Provision missing App Store profile for #{APP_IDENTIFIER} while reusing existing distribution certificate"
+  lane :bootstrap do
+    api_key = prepare_asc_api_key
+    bundle_id = Spaceship::ConnectAPI::BundleId.find(APP_IDENTIFIER)
+    asc_app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("Developer Portal App ID #{APP_IDENTIFIER} is missing.") unless bundle_id
+    UI.user_error!("App Store Connect app record #{APP_IDENTIFIER} is missing; create it in App Store Connect first.") unless asc_app
+
+    certs_before = distribution_certificates
+    ensure_expected_cert_present!(certs_before)
+    before_ids = certs_before.map(&:id).sort
+
+    keychain_path = recreate_signing_keychain
+    match(match_options(api_key: api_key, readonly: false).merge(force_for_new_certificates: false))
+
+    certs_after = distribution_certificates
+    after_ids = certs_after.map(&:id).sort
+    if after_ids != before_ids
+      UI.user_error!("Bootstrap unexpectedly altered distribution certificates (#{before_ids.inspect} -> #{after_ids.inspect})")
+    end
+
+    identity = SigningIdentity.resolve_distribution_identity(expected_team: TEAM_ID, keychain_path: keychain_path)
+    profile_path = ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-path"].to_s
+    ENV["SIGNING_IDENTITY_SHA1"] = identity[:sha1]
+    sh("bundle", "exec", "ruby", File.expand_path("../ci/test_profile_certificates.rb", __dir__), profile_path)
+    UI.success("Bootstrap completed cleanly for #{APP_IDENTIFIER}")
+  end
+
+  desc "Build, sign, verify, and upload IELTS Practice to TestFlight"
+  lane :release do
+    api_key = prepare_asc_api_key
+    bundle_id = Spaceship::ConnectAPI::BundleId.find(APP_IDENTIFIER)
+    asc_app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("Developer Portal App ID #{APP_IDENTIFIER} is missing.") unless bundle_id
+    UI.user_error!("App Store Connect app record #{APP_IDENTIFIER} is missing; create it in App Store Connect first.") unless asc_app
+
+    ensure_expected_cert_present!(distribution_certificates)
+    keychain_path = recreate_signing_keychain
+    match(match_options(api_key: api_key, readonly: true))
+
+    identity = SigningIdentity.resolve_distribution_identity(expected_team: TEAM_ID, keychain_path: keychain_path)
+    profile_name = ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-name"].to_s
+    profile_path = ENV["sigh_#{APP_IDENTIFIER}_appstore_profile-path"].to_s
+    UI.user_error!("Missing match profile metadata for #{APP_IDENTIFIER}") if profile_name.empty? || profile_path.empty?
+
+    ENV["SIGNING_IDENTITY_SHA1"] = identity[:sha1]
+    sh("bundle", "exec", "ruby", File.expand_path("../ci/test_profile_certificates.rb", __dir__), profile_path)
+
+    build_number = resolve_next_build_number(api_key)
+    UI.message("Building #{APP_IDENTIFIER} version #{MARKETING_VERSION} (#{build_number})")
+
+    current_cf_bundle_version = get_info_plist_value(path: INFO_PLIST_PATH, key: "CFBundleVersion").to_s
+    unless current_cf_bundle_version.start_with?("$(")
+      set_info_plist_value(path: INFO_PLIST_PATH, key: "CFBundleVersion", value: build_number)
+    end
+    increment_build_number(xcodeproj: PROJECT_PATH, build_number: build_number)
+
+    release_dir = File.expand_path("../build/release", __dir__)
+    FileUtils.mkdir_p(release_dir)
+    archive_path = File.join(release_dir, "IELTSPractice.xcarchive")
+    ipa_path = File.join(release_dir, "IELTSPractice.ipa")
+
+    sh("xcodebuild", "-resolvePackageDependencies", "-project", PROJECT_PATH, "-scheme", SCHEME)
+
+    build_app(
+      project: PROJECT_PATH,
+      scheme: SCHEME,
+      configuration: "Release",
+      clean: true,
+      destination: "generic/platform=iOS",
+      archive_path: archive_path,
+      output_directory: release_dir,
+      output_name: "IELTSPractice.ipa",
+      xcargs: "IELTS_CODE_SIGN_STYLE=Manual IELTS_TEAM=#{TEAM_ID} IELTS_SIGN_IDENTITY=\"#{identity[:sha1]}\" IELTS_PROFILE=\"#{profile_name}\" CURRENT_PROJECT_VERSION=#{build_number}",
+      export_method: "app-store",
+      export_team_id: TEAM_ID,
+      export_options: {
+        method: "app-store-connect",
+        signingStyle: "manual",
+        teamID: TEAM_ID,
+        signingCertificate: identity[:sha1],
+        provisioningProfiles: {
+          APP_IDENTIFIER => profile_name
+        }
+      },
+      buildlog_path: File.join(release_dir, "logs")
+    )
+
+    sh(
+      "python3",
+      File.expand_path("../ci/verify_release.py", __dir__),
+      "--archive", archive_path,
+      "--ipa", ipa_path,
+      "--version", MARKETING_VERSION,
+      "--build", build_number
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      app_identifier: APP_IDENTIFIER,
+      skip_waiting_for_build_processing: false,
+      distribute_external: false,
+      notify_external_testers: false
+    )
+
+    UI.success("Uploaded IELTS Practice v#{MARKETING_VERSION} (#{build_number}) to TestFlight")
+  end
+end

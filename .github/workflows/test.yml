@@ -1,0 +1,113 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ielts-iphone-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Web, Browser, and Unsigned iOS Build
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Reject secret-shaped or private data files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '(\.(p8|p12|mobileprovision|cer|pem|env)$|^private-data/)'; then
+            echo "Refusing to test a tree that contains key, profile, or private-data files."
+            exit 1
+          fi
+
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          else
+            XCODE_APP="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)"
+            sudo xcode-select -s "$XCODE_APP"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphonesimulator --show-sdk-version
+
+      - name: Set up Node and build Capacitor web assets
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install npm dependencies and run unit & web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          npm test
+          npx cap sync ios
+
+      - name: Run Playwright browser end-to-end test
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright install chromium
+          npm run test:browser
+
+      - name: Set up Ruby and release script checks
+        uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Check release tooling scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c fastlane/Fastfile
+          ruby -c ci/signing_identity.rb
+          bundle exec ruby ci/test_profile_certificates.rb
+          python3 ci/test_release_plists.py
+
+      - name: Build unsigned iOS simulator target
+        timeout-minutes: 25
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/logs
+          xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
+          DEVICE_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(d["udid"] for runtime in data["devices"].values() for d in runtime if d.get("isAvailable") and "iPhone" in d.get("name","")))')"
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            > build/logs/ios-build.log 2>&1 || {
+              tail -n 200 build/logs/ios-build.log
+              exit 1
+            }
+
+      - name: Upload test screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: iphone-browser-screenshots
+          path: docs/screenshots
+          if-no-files-found: ignore

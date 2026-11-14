@@ -1,0 +1,88 @@
+:root { --iphone-keyboard: 0px; }
+html { -webkit-text-size-adjust: 100%; }
+body.iphone-library-page {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
+}
+body.iphone-practice-page {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(56px + env(safe-area-inset-bottom) + var(--iphone-keyboard));
+  box-sizing: border-box;
+}
+#iphone-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 100000;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-around; gap: 6px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: #102033; color: #fff;
+}
+#iphone-bar button {
+  flex: 1 1 0; border: 0; border-radius: 999px; background: #1d4f73; color: #fff;
+  min-height: 38px; padding: 6px 8px; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#iphone-bar button[aria-pressed="true"] {
+  background: #2c7bb6;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+  font-weight: 700;
+}
+#iphone-status {
+  position: fixed; left: 10px; right: 10px; bottom: calc(64px + env(safe-area-inset-bottom));
+  z-index: 100001; padding: 8px 12px; border-radius: 12px; background: #fff8e8; color: #3b2a00;
+  font-size: 13px;
+}
+#iphone-status:empty, #iphone-status[data-state="idle"]:empty { display: none; }
+#iphone-status[data-state="error"] { background: #ffe4e4; color: #6b1010; }
+#iphone-status[data-state="success"], #iphone-status[data-state="duplicate"] { background: #e5f6ea; color: #0d3b18; }
+.iphone-selected { outline: 3px solid #f5b942; }
+.iphone-listening-empty, .iphone-explanation-note { margin: 12px; padding: 12px; background: #f4f7fb; border-radius: 12px; }
+@media (max-width: 900px) {
+  body.iphone-library-page .hero-shell {
+    padding: calc(10px + env(safe-area-inset-top)) 12px calc(72px + env(safe-area-inset-bottom)) !important;
+    gap: 12px !important;
+  }
+  body.iphone-library-page .hero-header { gap: 4px !important; }
+  body.iphone-library-page .hero-brand-title { margin: 0 !important; row-gap: 4px !important; }
+  body.iphone-library-page .hero-brand-text { font-size: 1.55rem !important; line-height: 1.2 !important; }
+  body.iphone-library-page .main-nav.hero-nav {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    padding: 4px !important;
+    gap: 4px !important;
+    border-radius: 16px !important;
+  }
+  body.iphone-library-page .hero-nav__btn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 40px !important;
+    padding: 8px 6px !important;
+    font-size: 14px !important;
+    white-space: nowrap !important;
+  }
+  body.iphone-library-page .hero-nav__btn[hidden] { display: none !important; }
+  body.iphone-library-page .hero-panel { padding: 14px 12px !important; border-radius: 18px !important; }
+  body.iphone-library-page .message-container {
+    top: calc(8px + env(safe-area-inset-top)) !important;
+    pointer-events: none !important;
+  }
+  body.iphone-practice-page .shell {
+    display: block !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  body.iphone-practice-page #divider { display: none !important; }
+  body.iphone-practice-page #left,
+  body.iphone-practice-page #right {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 84px !important;
+  }
+  body[data-iphone-pane="passage"] #right { display: none !important; }
+  body[data-iphone-pane="questions"] #left { display: none !important; }
+  .drag-item, .match-dropzone, .paragraph-dropzone { min-height: 44px; }
+}

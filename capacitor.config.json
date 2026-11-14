@@ -1,0 +1,10 @@
+{
+  "appId": "com.rookiei1.ieltspractice",
+  "appName": "雅思练习",
+  "webDir": "build/web",
+  "ios": {
+    "contentInset": "automatic",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {}
+}

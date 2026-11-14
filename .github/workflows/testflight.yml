@@ -1,0 +1,146 @@
+name: TestFlight Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Pipeline action: diagnose, bootstrap, or release"
+        required: true
+        default: "diagnose"
+        type: choice
+        options:
+          - diagnose
+          - bootstrap
+          - release
+      build_number:
+        description: "Optional explicit CFBundleVersion override"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ielts-iphone-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Fastlane ${{ inputs.action }}
+    runs-on: macos-26
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Reject secret-shaped or private data files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '(\.(p8|p12|mobileprovision|cer|pem|env)$|^private-data/)'; then
+            echo "Refusing to release a tree that contains key, profile, or private-data files."
+            exit 1
+          fi
+
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          else
+            XCODE_APP="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)"
+            sudo xcode-select -s "$XCODE_APP"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Set up Node and build Capacitor web assets
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build web bundle and sync iOS project
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          npm test
+          npx cap sync ios
+
+      - name: Set up Ruby and fastlane
+        uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Verify release scripts before signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c fastlane/Fastfile
+          ruby -c ci/signing_identity.rb
+          bundle exec ruby ci/test_profile_certificates.rb
+          python3 ci/test_release_plists.py
+
+      - name: Prepare Apple API key and signing deploy key
+        shell: bash
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          SIGNING_DEPLOY_KEY: ${{ secrets.SIGNING_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          python3 ci/prepare_apple_key.py
+          if [ -z "${SIGNING_DEPLOY_KEY}" ]; then
+            echo "Missing SIGNING_DEPLOY_KEY secret"
+            exit 1
+          fi
+          SSH_KEY_PATH="${RUNNER_TEMP}/signing_deploy_key"
+          printf '%s\n' "${SIGNING_DEPLOY_KEY}" > "${SSH_KEY_PATH}"
+          chmod 600 "${SSH_KEY_PATH}"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          echo "SIGNING_SSH_KEY_PATH=${SSH_KEY_PATH}" >> "${GITHUB_ENV}"
+          echo "MATCH_KEYCHAIN_NAME=ielts_ci_signing.keychain-db" >> "${GITHUB_ENV}"
+          echo "MATCH_KEYCHAIN_PASSWORD=$(openssl rand -hex 24)" >> "${GITHUB_ENV}"
+
+      - name: Run Fastlane ${{ inputs.action }}
+        shell: bash
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD_NEXT }}
+          SIGNING_STORE_URL: ${{ secrets.SIGNING_STORE_URL }}
+          SIGNING_CERTIFICATE_ID: ${{ secrets.SIGNING_CERTIFICATE_ID }}
+          BUILD_NUMBER_OVERRIDE: ${{ inputs.build_number }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          FASTLANE_DISABLE_COLORS: "1"
+        run: |
+          set -euo pipefail
+          bundle exec fastlane ios "${{ inputs.action }}"
+
+      - name: Upload release logs and verified IPA
+        if: always() && inputs.action == 'release'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ielts-iphone-release-artifacts
+          path: |
+            build/release/IELTSPractice.ipa
+            build/release/logs
+          if-no-files-found: ignore
+
+      - name: Clean up temporary secrets and signing keychain
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "${RUNNER_TEMP}/asc_api_key.json" "${RUNNER_TEMP}"/AuthKey_*.p8 "${RUNNER_TEMP}/signing_deploy_key"
+          if [ -n "${MATCH_KEYCHAIN_NAME:-}" ]; then
+            security delete-keychain "${HOME}/Library/Keychains/${MATCH_KEYCHAIN_NAME}" || true
+          fi
