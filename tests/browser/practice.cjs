@@ -131,10 +131,20 @@ async function main() {
     await page.locator("#practice-view").getByText("Harbor Notebook").waitFor();
     await page.getByRole("button", { name: /数据设置/ }).click();
     await page.locator("#settings-view").waitFor({ state: "visible" });
-    const json = await page.evaluate(async () => window.practiceRecorder.exportData("json"));
+    const json = await page.evaluate(async () => {
+      if (window.AppEntry && typeof window.AppEntry.ensurePracticeSuiteGroup === "function") {
+        await window.AppEntry.ensurePracticeSuiteGroup();
+      }
+      if (window.app && typeof window.app.ensurePracticeRecorder === "function") {
+        await window.app.ensurePracticeRecorder();
+      }
+      const recorder = window.practiceRecorder || (window.app && window.app.components && window.app.components.practiceRecorder);
+      return recorder.exportData("json");
+    });
     const imported = await page.evaluate(async (value) => {
       await window.AppData.practice.list();
-      return window.practiceRecorder.importData(JSON.parse(value), { merge: true });
+      const recorder = window.practiceRecorder || (window.app && window.app.components && window.app.components.practiceRecorder);
+      return recorder.importData(JSON.parse(value), { merge: true });
     }, json);
     if (!imported || imported.committed !== true) throw new Error("learning data import was not committed");
     const after = await page.evaluate(async () => (await window.AppData.practice.list({ projection: "light" })).length);
