@@ -98,11 +98,19 @@
     };
   }
 
+  let statusTimer = 0;
   function setStatus(message, state) {
     const node = document.getElementById("iphone-status");
     if (!node) return;
+    clearTimeout(statusTimer);
     node.textContent = message || "";
     node.dataset.state = state || "idle";
+    if (message && state !== "error" && state !== "pending") {
+      statusTimer = setTimeout(function () {
+        node.textContent = "";
+        node.dataset.state = "idle";
+      }, 2200);
+    }
   }
 
   function isPracticePage() {
