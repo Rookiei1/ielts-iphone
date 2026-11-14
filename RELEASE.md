@@ -28,3 +28,10 @@
    - `action=diagnose`: 只读检查 Developer App ID、App Store Connect 应用记录、Distribution 证书及签名配置状态。
    - `action=bootstrap`: 在不新建/撤销证书的前提下，为 `com.rookiei1.ieltspractice` 补齐 App Store 描述文件。
    - `action=release`: 以 `readonly: true` 解密证书与描述文件，手动签名导出 `IELTSPractice.ipa`，运行 `ci/verify_release.py` 校验 `.xcarchive` 与 `.ipa` 后上传 TestFlight。
+
+## 已验证发布记录
+
+- **2026-11-14 — v1.0.0 (Build 1)**:
+  - **测试流水线 (`Test`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43582885195 (通过: Web 构建、Python/Node 单测、Playwright 手机端流程测试、Ruby/Plist 校验与未签名 iOS Simulator 构建)
+  - **TestFlight 发布 (`TestFlight Release`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43582886001 (`upload_to_testflight` 成功，Apple 已处理完成 `1.0.0 - 1` for iOS，App ID `6834748437`)
+  - **状态说明**: 内部团队测试构建已处理完成；真机安装测试由用户在 iPhone TestFlight 客户端验证，未提交外部 Beta 审核。
