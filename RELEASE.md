@@ -31,6 +31,10 @@
 
 ## 已验证发布记录
 
+- **2026-11-14 — v1.0.0 (Build 2)**:
+  - **更新内容**: 全面重构 iPhone 原生风 UI（移除桌面端背景/模糊提示胶囊/错位底部滑动条，修复安全区与单栏排版、精简设置与记录卡片），并修复做题页白屏（先渲染题目再异步读取 IndexedDB 偏好并加超时保护，固定子 `WKWebView` Auto Layout 约束与 iOS CSS 注入顺序）。
+  - **测试流水线 (`Test`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43586849180 (commit `5a5f277`，通过 Web 构建、Python/Node 单测、Playwright 手机端流程测试、Plist 校验与未签名 iOS Simulator 构建)
+  - **TestFlight 发布 (`TestFlight Release`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43587053440 (`Uploaded IELTS Practice v1.0.0 (2) to TestFlight`，Apple 已完成处理)
 - **2026-11-14 — v1.0.0 (Build 1)**:
   - **测试流水线 (`Test`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43582885195 (通过: Web 构建、Python/Node 单测、Playwright 手机端流程测试、Ruby/Plist 校验与未签名 iOS Simulator 构建)
   - **TestFlight 发布 (`TestFlight Release`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43582886001 (`upload_to_testflight` 成功，Apple 已处理完成 `1.0.0 - 1` for iOS，App ID `6834748437`)
