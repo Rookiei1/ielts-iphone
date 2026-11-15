@@ -7,6 +7,22 @@ final class MobileFlowTests: XCTestCase {
     private func element(_ label: String) -> XCUIElement { app.descendants(matching: .any).matching(NSPredicate(format: "label == %@",label)).firstMatch }
     private func tap(_ label: String) { let item=element(label); XCTAssertTrue(item.waitForExistence(timeout:30)); item.tap() }
     private func screenshot(_ name: String) { let shot=XCTAttachment(screenshot:app.screenshot());shot.name=name;shot.lifetime = .keepAlways;add(shot) }
+    private func fill(_ number: Int, _ answer: String) {
+        let field=app.textFields["答案 \(number)"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout:20))
+        for _ in 0..<4 {
+            let bottom=app.buttons["提交答案"].frame.minY-16
+            let top=element("题目").frame.maxY+12
+            if field.frame.maxY <= bottom && field.frame.minY >= top {break}
+            let origin=app.coordinate(withNormalizedOffset:.zero)
+            let low=origin.withOffset(CGVector(dx:app.frame.midX,dy:bottom-12))
+            let high=origin.withOffset(CGVector(dx:app.frame.midX,dy:max(top+20,bottom-220)))
+            if field.frame.maxY > bottom {low.press(forDuration:0.05,thenDragTo:high)}
+            else {high.press(forDuration:0.05,thenDragTo:low)}
+        }
+        field.tap();field.typeText(answer)
+        XCTAssertEqual(field.value as? String,answer,"Typed answer did not reach the visible field")
+    }
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0 { screenshot("failure");let tree=XCTAttachment(string:app.debugDescription);tree.name="failure-tree";tree.lifetime = .keepAlways;add(tree) }
     }
@@ -28,9 +44,8 @@ final class MobileFlowTests: XCTestCase {
         harbor()
         let one=app.textFields["答案 1"].firstMatch
         XCTAssertTrue(one.waitForExistence(timeout:20),"Question did not open")
-        one.tap();one.typeText("shed")
-        let two=app.textFields["答案 2"].firstMatch;two.tap();two.typeText("lantern")
-        let three=app.textFields["答案 3"].firstMatch;three.tap();three.typeText("cedar")
+        fill(1,"shed");fill(2,"lantern");fill(3,"cedar")
+        let three=app.textFields["答案 3"].firstMatch
         tap("收起键盘")
         let hidden=XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:app.keyboards.firstMatch)
         XCTAssertEqual(XCTWaiter.wait(for:[hidden],timeout:10),.completed,"Done did not dismiss the keyboard")
