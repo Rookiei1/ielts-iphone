@@ -18,9 +18,15 @@ on:
         required: false
         default: ""
         type: string
+      validation_run:
+        description: "Optional native validation run that must succeed before upload"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ielts-iphone-testflight
@@ -126,6 +132,8 @@ jobs:
           SIGNING_STORE_URL: ${{ secrets.SIGNING_STORE_URL }}
           SIGNING_CERTIFICATE_ID: ${{ secrets.SIGNING_CERTIFICATE_ID }}
           BUILD_NUMBER_OVERRIDE: ${{ inputs.build_number }}
+          REQUIRED_TEST_RUN_ID: ${{ inputs.validation_run }}
+          GH_TOKEN: ${{ github.token }}
           FASTLANE_SKIP_UPDATE_CHECK: "1"
           FASTLANE_DISABLE_COLORS: "1"
           IELTS_REQUIRE_FULL_BANK: "1"
