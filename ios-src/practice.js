@@ -13,7 +13,8 @@
     const template=document.createElement('template');template.innerHTML=html||'';
     template.content.querySelectorAll('script,style,link,iframe,object,embed,button,nav,footer,input[type=hidden]').forEach(n=>n.remove());
     template.content.querySelectorAll('*').forEach(node=>{
-      for(const a of [...node.attributes])if(a.name==='style'||(a.name==='id'&&!['INPUT','SELECT','TEXTAREA'].includes(node.tagName))||a.name.startsWith('on')||a.name==='draggable'||a.name==='data-answer'||a.name==='srcdoc')node.removeAttribute(a.name);
+      const svg=!!node.closest('svg');
+      for(const a of [...node.attributes])if((a.name==='style'&&!svg)||(a.name==='id'&&!svg&&!['INPUT','SELECT','TEXTAREA'].includes(node.tagName))||a.name.startsWith('on')||a.name==='draggable'||a.name==='data-answer'||a.name==='srcdoc')node.removeAttribute(a.name);
       if(node.tagName==='A')node.removeAttribute('href');
       if(node.tagName==='IMG'&&!/^(data:image\/|assets\/|\.\/assets\/)/i.test(node.getAttribute('src')||''))node.removeAttribute('src');
     });

@@ -55,7 +55,13 @@ def fetch_bank():
     def read(entry):
         saved=ROOT/'build/upstream-reading'/entry['sha']
         if saved.exists():raw=saved.read_bytes()
-        else:raw=download(RAW+DIRECTORY+urllib.parse.quote(entry['name']))
+        else:
+            stored=json.loads(download(f'https://api.github.com/repos/{REPO}/git/blobs/{entry["sha"]}'))
+            raw=base64.b64decode(stored['content'])
+            pointer=re.search(rb'oid sha256:([0-9a-f]{64})',raw) if raw.startswith(b'version https://git-lfs.github.com/') else None
+            if pointer:
+                raw=download(RAW+DIRECTORY+urllib.parse.quote(entry['name']))
+                if hashlib.sha256(raw).hexdigest()!=pointer.group(1).decode():raise ValueError('LFS source integrity check failed')
         blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
         with_bom=b'\xef\xbb\xbf'+raw
         if blob!=entry['sha'] and hashlib.sha1(b'blob '+str(len(with_bom)).encode()+b'\0'+with_bom).hexdigest()==entry['sha']:
