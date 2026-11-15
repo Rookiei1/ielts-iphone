@@ -8,7 +8,7 @@ final class MobileFlowTests: XCTestCase {
     private func tap(_ label: String) { let item=element(label); XCTAssertTrue(item.waitForExistence(timeout:30)); item.tap() }
     private func screenshot(_ name: String) { let shot=XCTAttachment(screenshot:app.screenshot());shot.name=name;shot.lifetime = .keepAlways;add(shot) }
     override func tearDownWithError() throws {
-        if testRun?.hasSucceeded == false && !realDatabasePhase { screenshot("failure");let tree=XCTAttachment(string:app.debugDescription);tree.name="failure-tree";tree.lifetime = .keepAlways;add(tree) }
+        if (testRun?.failureCount ?? 0) > 0 { screenshot("failure");let tree=XCTAttachment(string:app.debugDescription);tree.name="failure-tree";tree.lifetime = .keepAlways;add(tree) }
     }
     private func harbor() {
         let search=app.searchFields["搜索题目"].firstMatch
@@ -53,5 +53,6 @@ final class MobileFlowTests: XCTestCase {
         tap("重新做这篇");let draft=app.textFields["答案 1"].firstMatch;draft.tap();draft.typeText("draft-marker");tap("返回题库")
         let start=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","开始练习 Harbor")).firstMatch;XCTAssertTrue(start.waitForExistence(timeout:15));start.tap()
         XCTAssertEqual(app.textFields["答案 1"].firstMatch.value as? String,"draft-marker","Immediate return lost the answer")
+        screenshot("04-draft-restored")
     }
 }

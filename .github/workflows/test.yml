@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      native_scope:
+        description: "Native iPhone screens to validate"
+        type: choice
+        default: both
+        options: [both, compact, large]
 
 permissions:
   contents: read
@@ -88,8 +94,8 @@ jobs:
           bundle exec ruby ci/test_profile_certificates.rb
           python3 ci/test_release_plists.py
 
-      - name: Test the app in real iOS WKWebViews
-        timeout-minutes: 25
+      - name: Prepare native iPhone validation
+        timeout-minutes: 5
         shell: bash
         run: |
           set -euo pipefail
@@ -97,27 +103,16 @@ jobs:
           bundle exec ruby ci/add_ui_tests.rb
           xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme AppMobileUITests
           xcrun simctl list devices available -j > build/devices.json
-          python3 - <<'PYDEV' > build/ui-device-ids.txt
-          import json
-          data = json.load(open('build/devices.json'))
-          devices = [d for group in data['devices'].values() for d in group if d.get('isAvailable') and 'iPhone' in d.get('name','')]
-          compact = sorted(devices, key=lambda d: (0 if '16e' in d['name'] else 1 if 'Max' not in d['name'] else 2, d['name']))[0]
-          large = next((d for d in devices if 'Max' in d['name'] and d['udid'] != compact['udid']), None)
-          for device in [compact, large]:
-              if device: print(device['udid'])
-          PYDEV
-          INDEX=0
-          while IFS= read -r DEVICE_ID; do
-            INDEX=$((INDEX + 1))
-            xcrun simctl boot "$DEVICE_ID" || true
-            TEST_STATUS=0
-            xcodebuild test -project ios/App/App.xcodeproj -scheme AppMobileUITests -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath build/DerivedData -resultBundlePath "build/MobileUI-$INDEX.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > "build/logs/ui-$INDEX.log" 2>&1 || TEST_STATUS=$?
-            xcrun xcresulttool export attachments --path "build/MobileUI-$INDEX.xcresult" --output-path "build/native-screenshots/device-$INDEX" || true
-            if [ "$TEST_STATUS" -ne 0 ]; then
-              tail -n 100 "build/logs/ui-$INDEX.log"
-              exit "$TEST_STATUS"
-            fi
-          done < build/ui-device-ids.txt
+
+      - name: Validate compact iPhone practice and saved answers
+        if: inputs.native_scope != 'large'
+        timeout-minutes: 18
+        run: python3 ci/run_iphone_ui.py compact
+
+      - name: Validate large iPhone practice and saved answers
+        if: inputs.native_scope != 'compact'
+        timeout-minutes: 18
+        run: python3 ci/run_iphone_ui.py large
 
       - name: Upload test screenshots
         if: always()
@@ -138,5 +133,6 @@ jobs:
           name: iphone-native-screenshots
           path: |
             build/native-screenshots
+            build/logs
             !build/native-screenshots/**/*.mp4
           if-no-files-found: ignore
