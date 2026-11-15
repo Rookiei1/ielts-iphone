@@ -22,6 +22,8 @@ DIRECTORY='assets/generated/reading-exams/'
 FIELDS=('schemaVersion','examId','meta','passage','questionGroups','answerKey','questionOrder','questionDisplayMap')
 
 def download(url):
+    if url.startswith('https://api.github.com/') and shutil.which('gh'):
+        return subprocess.check_output(['gh','api',url])
     curl=shutil.which('curl.exe') or shutil.which('curl')
     if curl:
         return subprocess.check_output([curl,'--fail','--location','--silent','--show-error','--retry','2','--connect-timeout','15','--max-time','60',url])

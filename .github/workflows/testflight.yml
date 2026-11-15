@@ -70,6 +70,7 @@ jobs:
         env:
           IELTS_REQUIRE_FULL_BANK: "1"
           IELTS_TEST_FIXTURES: "0"
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
