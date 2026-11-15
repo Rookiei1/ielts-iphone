@@ -1,6 +1,6 @@
 (function (window, document) {
   'use strict';
-  const state = { tab: 'browse', part: 'all', frequency: 'all', query: '', limit: 40, records: [], exams: [], ready: false };
+  const state = { tab: 'browse', reviewId: null, part: 'all', frequency: 'all', query: '', limit: 40, records: [], exams: [], ready: false };
   const icons = {
     browse: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5zM4 18.5A2.5 2.5 0 0 1 6.5 16H20"/>',
     records: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -11,7 +11,7 @@
   };
   const svg = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + icons[name] + '</svg>';
   const escape = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  let root, main, title, counter, refreshToken = 0;
+  let root, main, title, counter, refreshToken = 0, navigationToken = 0;
   function status(message, type = 'error') {
     if (window.IELTSMobileBridge) window.IELTSMobileBridge.status(message, type);
   }
@@ -99,6 +99,8 @@
       '<p class="m-help">题库和记录保存在这台设备。更换设备或卸载前，请先导出备份。</p><div class="m-version">雅思练习 <span>1.1.0</span></div></section>';
   }
   function navigate(tab) {
+    navigationToken++;
+    state.reviewId = null;
     state.tab = ['browse','records','settings'].includes(tab) ? tab : 'browse';
     title.textContent = ({browse:'阅读练习',records:'练习记录',settings:'我的'})[state.tab];
     counter.hidden = state.tab !== 'browse';
@@ -117,6 +119,9 @@
       state.exams = (window.getReadingExamIndex ? window.getReadingExamIndex() : []).filter(exam => exam.type !== 'listening');
       state.records = records.filter(record => !['interrupted','abandoned','pending'].includes(record.status) && !record.isInterrupted).sort((a,b) => (dateOf(b)?.getTime() || 0) - (dateOf(a)?.getTime() || 0));
       state.ready = true;
+      // A child WKWebView may finish sending messages after the user opens a record.
+      // Refresh the data without replacing the active review or its scroll position.
+      if (state.reviewId) return;
       if (state.tab === 'browse' && document.getElementById('mobile-exams')) renderList();
       else navigate(state.tab);
       counter.textContent = state.exams.length + ' 篇';
@@ -134,8 +139,11 @@
     finally { if (button) button.disabled = false; }
   }
   async function detail(id) {
+    state.reviewId = id;
+    const token = ++navigationToken;
     try {
       const record = await window.AppData.practice.get(id);
+      if (token !== navigationToken || state.reviewId !== id) return;
       if (!record) throw new Error('这条记录已不存在');
       const data = record.realData || record;
       const user = record.answers || record.answerMap || data.userAnswers || record.userAnswers || {};
@@ -146,7 +154,11 @@
         (ids.length ? '<ol class="m-answer-list">' + ids.map(question => '<li><strong>第 ' + escape(String(question).replace(/^q/,'')) + ' 题</strong><p>我的答案：' + escape(Array.isArray(user[question]) ? user[question].join(' / ') : user[question] || '未作答') + '</p><p class="m-correct">参考答案：' + escape(Array.isArray(correct[question]) ? correct[question].join(' / ') : correct[question] ?? '未记录') + '</p></li>').join('') + '</ol>' : '<p class="m-help">这条旧记录未包含逐题作答。可重新练习并查看解析。</p>') +
         '<button class="m-primary" data-m-open="' + escape(record.examId) + '">重新练习这篇</button></section>';
       window.scrollTo(0,0);
-    } catch (error) { status(error.message); }
+    } catch (error) {
+      if (token !== navigationToken) return;
+      state.reviewId = null;
+      status(error.message);
+    }
   }
   function boot() {
     if (document.getElementById('left') || document.getElementById('mobile-app')) return;

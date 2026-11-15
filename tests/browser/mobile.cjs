@@ -102,6 +102,7 @@ async function main() {
     await page.screenshot({path:path.join(shots,'mobile-records.png')});
     await page.locator('.m-record').filter({hasText:'Harbor Notebook'}).click();
     await page.locator('.m-review').waitFor();
+    await page.evaluate(() => window.IELTSMobileUI.refresh());
     assert.equal(await page.locator('.m-answer-list li').count(),6,'review is missing saved answers');
     await page.locator('.m-answer-list').getByText('我的答案：shed',{exact:true}).waitFor();
     await page.screenshot({path:path.join(shots,'mobile-review.png')});
@@ -159,8 +160,7 @@ async function main() {
     assert.deepEqual(errors,[]);
     console.log('Mobile layout, reading, grading, touch matching, review and persistence passed.');
   } catch (error) {
-    console.log('Paint stack:',await page.evaluate(() => document.elementsFromPoint(180,300).slice(0,6).map(node => ({tag:node.tagName,id:node.id,cls:node.className}))));
-    if (await page.locator('#mobile-frequency').count()) console.log('Frequency control:',await page.locator('#mobile-frequency').evaluate(node => node.outerHTML));
+    console.log('Paint stack:',await page.evaluate(() => document.elementsFromPoint(180,300).slice(0,6).map(node => ({tag:node.tagName,id:node.id,cls:node.className}))).catch(() => 'Page was navigating'));
     if (!privatePhase) for (const [i,p] of context.pages().entries()) await p.screenshot({path:path.join(shots,`mobile-failure-${i}.png`)}).catch(()=>{});
     throw error;
   } finally { await browser.close(); server.close(); }
