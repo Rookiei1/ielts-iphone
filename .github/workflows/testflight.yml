@@ -123,7 +123,9 @@ jobs:
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
           echo "SIGNING_SSH_KEY_PATH=${SSH_KEY_PATH}" >> "${GITHUB_ENV}"
           echo "MATCH_KEYCHAIN_NAME=ielts_ci_signing.keychain-db" >> "${GITHUB_ENV}"
-          echo "MATCH_KEYCHAIN_PASSWORD=$(openssl rand -hex 24)" >> "${GITHUB_ENV}"
+          IELTS_CI_KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::${IELTS_CI_KEYCHAIN_PASSWORD}"
+          echo "MATCH_KEYCHAIN_PASSWORD=${IELTS_CI_KEYCHAIN_PASSWORD}" >> "${GITHUB_ENV}"
 
       - name: Run Fastlane ${{ inputs.action }}
         shell: bash
