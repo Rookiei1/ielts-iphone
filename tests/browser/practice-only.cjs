@@ -8,10 +8,11 @@ const root=path.resolve(__dirname,'../../build/web');const shots=path.resolve(__
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('popup',()=>errors.push('Unexpected popup'));
  try{
   await page.goto('http://127.0.0.1:8765/');await page.locator('.exam').first().waitFor();
-  const report=await page.evaluate(()=>{
+  const report=await page.evaluate(async()=>{
    const failures=[];let count=0,questions=0;const normalize=v=>String(v??'').trim().toLowerCase().replace(/[‘’]/g,"'").replace(/\s+/g,' ');
    for(const exam of PracticeApp.bank.filter(e=>!e.examId.startsWith('sample-'))){
     PracticeApp.open(exam.examId);const mapped=new Set([...document.querySelectorAll('#questions [data-qids]')].flatMap(i=>JSON.parse(i.dataset.qids)));
+    for(const image of document.querySelectorAll('.pane img')){try{await image.decode();if(!image.naturalWidth)throw new Error('empty');}catch(_){failures.push({id:exam.examId,brokenFigure:true});}}
     const missing=Object.keys(exam.answerKey).filter(id=>!mapped.has(id));if(missing.length)failures.push({id:exam.examId,missing});
     const expected=id=>Array.isArray(exam.answerKey[id])?exam.answerKey[id]:[exam.answerKey[id]];
     for(const input of document.querySelectorAll('#questions [data-qids]')){

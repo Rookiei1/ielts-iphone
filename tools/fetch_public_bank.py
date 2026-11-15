@@ -20,6 +20,7 @@ REVISION='7f7a01b2bdc8b5cfcb8ace3d1effa0e807214179'
 RAW=f'https://raw.githubusercontent.com/{REPO}/{REVISION}/'
 DIRECTORY='assets/generated/reading-exams/'
 FIELDS=('schemaVersion','examId','meta','passage','questionGroups','answerKey','questionOrder','questionDisplayMap')
+MEDIA_INDEX={}
 
 def download(url):
     if url.startswith('https://api.github.com/') and shutil.which('gh'):
@@ -40,17 +41,32 @@ def inline_media(value):
         if src.startswith('data:image/'):return match.group(0)
         url=RAW+src.lstrip('/') if src.startswith('/') or src.startswith('assets/') else urllib.parse.urljoin(RAW+DIRECTORY,src)
         if not url.startswith(RAW):raise ValueError('Question image is outside the pinned public source')
-        content=download(url)
-        mime=mimetypes.guess_type(url)[0] or 'image/png'
+        name=urllib.parse.unquote(urllib.parse.urlparse(url).path).rsplit('/',1)[-1]
+        entry=MEDIA_INDEX.get(name)
+        if entry is None:
+            # This release references a derived PNG while shipping the matching SVG.
+            entry=next((item for key,item in MEDIA_INDEX.items() if Path(key).stem==Path(name).stem),None)
+        if entry is None:raise ValueError(f'Missing public question figure: {name}')
+        saved=ROOT/'build/upstream-media'/entry['sha']
+        if saved.exists():content=saved.read_bytes()
+        else:
+            blob=json.loads(download(f'https://api.github.com/repos/{REPO}/git/blobs/{entry["sha"]}'))
+            content=base64.b64decode(blob['content'])
+            saved.parent.mkdir(parents=True,exist_ok=True);saved.write_bytes(content)
+        if hashlib.sha1(b'blob '+str(len(content)).encode()+b'\0'+content).hexdigest()!=entry['sha']:raise ValueError('Question image integrity check failed')
+        mime=mimetypes.guess_type(entry['name'])[0] or 'image/png'
         return match.group(1)+'data:'+mime+';base64,'+base64.b64encode(content).decode()+match.group(3)
     return re.sub(r'(\bsrc=["\x27])([^"\x27]+)(["\x27])',replace,value,flags=re.I)
 
 def fetch_bank():
+    global MEDIA_INDEX
     cache=ROOT/'build/public-bank.json'
     if cache.exists():
         data=json.loads(cache.read_text(encoding='utf-8'))
         if data.get('sourceRevision')==REVISION and len(data.get('exams',[]))==242:return data['exams']
     entries=json.loads(download(f'https://api.github.com/repos/{REPO}/contents/{DIRECTORY}?ref={REVISION}'))
+    media=json.loads(download(f'https://api.github.com/repos/{REPO}/contents/{DIRECTORY}media?ref={REVISION}'))
+    MEDIA_INDEX={entry['name']:entry for entry in media if entry['type']=='file'}
     files=[entry for entry in entries if entry['name'].endswith('.js') and entry['name']!='manifest.js']
     def read(entry):
         saved=ROOT/'build/upstream-reading'/entry['sha']
