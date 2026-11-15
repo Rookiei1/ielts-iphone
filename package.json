@@ -2,21 +2,18 @@
   "name": "ielts-iphone",
   "version": "1.1.0",
   "private": true,
-  "description": "Offline IELTS Practice for iPhone. GPL-3.0 program with original sample passages.",
+  "description": "Standalone iPhone reading practice with the bundled public question database.",
   "scripts": {
     "build": "python tools/prepare_web.py",
     "test:py": "python -m unittest discover -s tools/tests -v",
-    "test:node": "node --test tests/bank.test.js tests/native-channel.test.cjs",
-    "test": "python -m unittest discover -s tools/tests -v && node --test tests/bank.test.js tests/native-channel.test.cjs",
-    "test:browser": "node tests/browser/mobile.cjs",
+    "test:node": "node --check ios-src/practice.js",
+    "test": "python -m unittest discover -s tools/tests -v && node --check ios-src/practice.js",
+    "test:browser": "node tests/browser/practice-only.cjs",
     "cap:sync": "npm run build && npx cap sync ios"
   },
   "dependencies": {
-    "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.0.0",
-    "@capacitor/filesystem": "^8.0.0",
-    "@capacitor/ios": "^8.0.0",
-    "@capacitor/share": "^8.0.0"
+    "@capacitor/ios": "^8.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",

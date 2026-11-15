@@ -53,6 +53,9 @@ jobs:
           cache: npm
 
       - name: Install npm dependencies and run unit & web build
+        env:
+          IELTS_TEST_FIXTURES: "1"
+          IELTS_REQUIRE_FULL_BANK: "1"
         shell: bash
         run: |
           set -euo pipefail

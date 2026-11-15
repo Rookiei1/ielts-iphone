@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import plistlib
 import shutil
@@ -18,9 +19,9 @@ EXPECTED_DISPLAY_NAME = "雅思练习"
 FORBIDDEN_TEXTS = ("ZYZ", "Salloway", "#license-modal")
 REQUIRED_WEB_FILES = (
     Path("public/index.html"),
-    Path("public/ios/bank.js"),
-    Path("public/ios/iphone-bridge.js"),
-    Path("public/ios/iphone.css"),
+    Path("public/practice.js"),
+    Path("public/practice.css"),
+    Path("public/bank.json"),
 )
 
 
@@ -79,6 +80,12 @@ def verify_web_assets(app_dir: Path) -> None:
         if not target.is_file() or target.stat().st_size == 0:
             raise ValueError(f"Missing or empty web asset inside app bundle: {target}")
     index_html = (app_dir / "public/index.html").read_text(encoding="utf-8", errors="replace")
+    if os.environ.get('IELTS_REQUIRE_FULL_BANK') == '1':
+        bank=json.loads((app_dir/'public/bank.json').read_text(encoding='utf-8'))
+        if len(bank.get('exams',[])) != 242:
+            raise ValueError('Release must contain exactly 242 real readings, without test fixtures')
+        if (app_dir/'public/js').exists() or (app_dir/'public/ios').exists():
+            raise ValueError('The old desktop runtime must not be packaged')
     for token in FORBIDDEN_TEXTS:
         if token in index_html:
             raise ValueError(f"Forbidden upstream text {token!r} found in packaged public/index.html")

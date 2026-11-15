@@ -67,6 +67,9 @@ jobs:
           cache: npm
 
       - name: Build web bundle and sync iOS project
+        env:
+          IELTS_REQUIRE_FULL_BANK: "1"
+          IELTS_TEST_FIXTURES: "0"
         shell: bash
         run: |
           set -euo pipefail
@@ -124,6 +127,7 @@ jobs:
           BUILD_NUMBER_OVERRIDE: ${{ inputs.build_number }}
           FASTLANE_SKIP_UPDATE_CHECK: "1"
           FASTLANE_DISABLE_COLORS: "1"
+          IELTS_REQUIRE_FULL_BANK: "1"
         run: |
           set -euo pipefail
           bundle exec fastlane ios "${{ inputs.action }}"
