@@ -2,4 +2,7 @@
 
 #app:focus{outline:none}
 
+html,body{position:fixed;inset:0;overscroll-behavior:none}
+#app{position:fixed;top:var(--app-top,0px);left:0;right:0}
+
 .pane label.answer-option{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:10px 12px;margin:6px 0;border:1px solid var(--line);border-radius:10px;background:#fafbfd;font-size:16px;line-height:1.6}

@@ -142,10 +142,23 @@
   });
   app.addEventListener('change',event=>{const input=event.target;if(!input.dataset.qids)return;if(input.type==='checkbox'&&input.checked){const all=[...document.querySelectorAll('#questions input[type=checkbox]')].filter(i=>i.dataset.qids===input.dataset.qids);const max=Number(input.dataset.max)||1;if(all.filter(i=>i.checked).length>max){input.checked=false;notice('最多选择 '+max+' 项');}}save();});
   app.addEventListener('input',event=>{if(event.target.dataset.qids)save();});
-  function fit(){document.documentElement.style.setProperty('--app-height',(window.visualViewport?.height||innerHeight)+'px');}
+  function fit(){
+    const viewport=window.visualViewport;
+    document.documentElement.style.setProperty('--app-height',(viewport?.height||innerHeight)+'px');
+    document.documentElement.style.setProperty('--app-top',(viewport?.offsetTop||0)+'px');
+  }
+  function revealAnswer(){
+    const input=focusedInput;
+    if(!input?.isConnected||document.activeElement!==input||!input.dataset.qids)return;
+    const pane=input.closest('.pane');if(!pane)return;
+    const field=input.getBoundingClientRect(),bounds=pane.getBoundingClientRect();
+    if(field.bottom>bounds.bottom-12)pane.scrollTop+=field.bottom-bounds.bottom+12;
+    else if(field.top<bounds.top+12)pane.scrollTop+=field.top-bounds.top-12;
+  }
   app.addEventListener('pointerdown',event=>{if(event.target.closest('[data-done]')){event.preventDefault();dismissKeyboard();}});
-  app.addEventListener('focusin',event=>{if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))focusedInput=event.target;if(event.target.dataset?.qids)setTimeout(()=>{if(document.activeElement===event.target)event.target.scrollIntoView({block:'nearest'});},250);});
-  window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);fit();window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+  app.addEventListener('focusin',event=>{if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName)){focusedInput=event.target;requestAnimationFrame(revealAnswer);}});
+  const resize=()=>{fit();requestAnimationFrame(revealAnswer);};
+  window.visualViewport?.addEventListener('resize',resize);window.visualViewport?.addEventListener('scroll',fit);window.addEventListener('resize',resize);fit();window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
   window.PracticeApp={open,list,collect,grade,get bank(){return state.bank;},get current(){return state.exam;}};
   fetch('bank.json').then(r=>{if(!r.ok)throw new Error('题库读取失败');return r.json();}).then(data=>{if(!Array.isArray(data.exams)||!data.exams.length)throw new Error('题库为空');state.bank=data.exams;list();}).catch(error=>{app.innerHTML='<p class="loading">'+esc(error.message)+'。请关闭后重新打开。</p>';});
 })();
