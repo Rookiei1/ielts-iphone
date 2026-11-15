@@ -5,6 +5,7 @@
     const INIT_RETRY_MS = 1500;
     const SIMULATION_DRAFT_SYNC_MS = 1200;
     const READING_DRAFT_SYNC_MS = 1500;
+    const mobileDraftRequests = new Map();
     const SUBMIT_ACK_TIMEOUT_MS = 10000;
     const NOTE_EDITOR_SAVE_DEBOUNCE_MS = 450;
     const NOTE_ROW_LONG_PRESS_MS = 100;
@@ -8382,9 +8383,20 @@
                 renderMemorizeStudyLayer().catch(() => {});
             }
             sendSessionReady();
+            global.__IELTS_READING_READY__ = true;
+            document.body.dataset.sessionReady = 'true';
+            global.dispatchEvent(new Event('ielts-reading-ready'));
             return;
         }
         if (!isTrustedHostMessage(event, payload, data)) {
+            return;
+        }
+        if (type === 'MOBILE_DRAFT_SAVED') {
+            const request = mobileDraftRequests.get(String(data.mobileFlushId || ''));
+            if (request) {
+                mobileDraftRequests.delete(String(data.mobileFlushId));
+                request(data.committed === true);
+            }
             return;
         }
         if (type === 'REPLAY_PRACTICE_RECORD') {
@@ -8612,6 +8624,29 @@
     }
 
     function attachReadingDraftLifecycleHooks() {
+        global.saveMobileReadingDraft = function () {
+            if (state.submitted || state.readOnly || state.reviewMode || state.memorizeMode) return Promise.resolve(true);
+            const draft = state.suite?.inline
+                ? (updateActiveSlotFromCurrentDom('mobile-leave') || collectCurrentDraft())
+                : collectCurrentDraft();
+            const id = String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+            return new Promise((resolve) => {
+                const timeout = global.setTimeout(() => { mobileDraftRequests.delete(id); resolve(false); }, 6000);
+                mobileDraftRequests.set(id, (committed) => { global.clearTimeout(timeout); resolve(committed); });
+                const delivered = postMessage('READING_DRAFT_SYNC', {
+                    examId: state.examId, sessionId: state.sessionId || null,
+                    windowSessionToken: state.windowSessionToken || null,
+                    draft, draftUpdatedAt: Date.now(), elapsed: getPageElapsedSeconds(),
+                    timerSnapshot: getPracticeTimerSnapshot(), reason: 'mobile-leave', mobileFlushId: id
+                });
+                if (!delivered) { global.clearTimeout(timeout); mobileDraftRequests.delete(id); resolve(false); }
+            });
+        };
+        let mobileSaveTimer;
+        document.addEventListener('input', () => {
+            global.clearTimeout(mobileSaveTimer);
+            mobileSaveTimer = global.setTimeout(() => flushReadingDraftOnLifecycle('mobile-input'), 200);
+        });
         const flush = (reason) => {
             try {
                 // 先把编辑器里未提交的笔记立刻刷出：review 页面 flushReadingDraftOnLifecycle

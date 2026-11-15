@@ -8,9 +8,11 @@ final class PracticeWindowHost: NSObject, WKUIDelegate {
     static let shared = PracticeWindowHost()
     weak var container: UIView?
     private var children: [WKWebView] = []
+    private var originalDelegate: WKUIDelegate?
 
     func attach(to controller: UIViewController, webView: WKWebView) {
         container = controller.view
+        originalDelegate = webView.uiDelegate
         webView.uiDelegate = self
         webView.isOpaque = true
         webView.backgroundColor = .systemBackground
@@ -22,6 +24,15 @@ final class PracticeWindowHost: NSObject, WKUIDelegate {
         #endif
         let preferences = webView.configuration.preferences
         preferences.javaScriptCanOpenWindowsAutomatically = true
+    }
+
+    override func responds(to selector: Selector!) -> Bool {
+        super.responds(to: selector) || originalDelegate?.responds(to: selector) == true
+    }
+
+    override func forwardingTarget(for selector: Selector!) -> Any? {
+        if let delegate = originalDelegate, delegate.responds(to: selector) { return delegate }
+        return super.forwardingTarget(for: selector)
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {

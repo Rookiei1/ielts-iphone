@@ -65,8 +65,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx playwright install chromium
+          npx playwright install chromium webkit
           npm run test:browser
+          TEST_BROWSER=webkit npm run test:browser
 
       - name: Set up Ruby and release script checks
         uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
@@ -83,31 +84,40 @@ jobs:
           bundle exec ruby ci/test_profile_certificates.rb
           python3 ci/test_release_plists.py
 
-      - name: Build unsigned iOS simulator target
+      - name: Test the app in real iOS WKWebViews
         timeout-minutes: 25
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/logs
-          xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
-          DEVICE_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(d["udid"] for runtime in data["devices"].values() for d in runtime if d.get("isAvailable") and "iPhone" in d.get("name","")))')"
-          xcodebuild build \
-            -project ios/App/App.xcodeproj \
-            -scheme App \
-            -configuration Debug \
-            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            > build/logs/ios-build.log 2>&1 || {
-              tail -n 200 build/logs/ios-build.log
-              exit 1
-            }
+          mkdir -p build/logs build/native-screenshots
+          bundle exec ruby ci/add_ui_tests.rb
+          xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme AppMobileUITests
+          xcrun simctl list devices available -j > build/devices.json
+          python3 - <<'PYDEV' > build/ui-device-ids.txt
+          import json
+          data = json.load(open('build/devices.json'))
+          devices = [d for group in data['devices'].values() for d in group if d.get('isAvailable') and 'iPhone' in d.get('name','')]
+          compact = sorted(devices, key=lambda d: (0 if '16e' in d['name'] else 1 if 'Max' not in d['name'] else 2, d['name']))[0]
+          large = next((d for d in devices if 'Max' in d['name'] and d['udid'] != compact['udid']), None)
+          for device in [compact, large]:
+              if device: print(device['udid'])
+          PYDEV
+          INDEX=0
+          while IFS= read -r DEVICE_ID; do
+            INDEX=$((INDEX + 1))
+            xcrun simctl boot "$DEVICE_ID" || true
+            xcodebuild test -project ios/App/App.xcodeproj -scheme AppMobileUITests -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath build/DerivedData -resultBundlePath "build/MobileUI-$INDEX.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > "build/logs/ui-$INDEX.log" 2>&1 || { tail -n 160 "build/logs/ui-$INDEX.log"; exit 1; }
+            xcrun xcresulttool export attachments --path "build/MobileUI-$INDEX.xcresult" --output-path "build/native-screenshots/device-$INDEX"
+          done < build/ui-device-ids.txt
 
       - name: Upload test screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: iphone-browser-screenshots
-          path: docs/screenshots
+          path: |
+            docs/screenshots
+            build/native-screenshots
+            build/logs
+            build/MobileUI-*.xcresult
           if-no-files-found: ignore

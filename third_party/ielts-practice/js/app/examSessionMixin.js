@@ -3049,7 +3049,12 @@
                         }
                         break;
                     case 'READING_DRAFT_SYNC':
-                        await this._queueReadingDraftSync(routedExamId, data, windowInfo);
+                        const mobileDraftCommitted = await this._queueReadingDraftSync(routedExamId, data, windowInfo);
+                        if (data.mobileFlushId) {
+                            this._postExamMessage(routedExamId, sourceWindow || expectedWindow, 'MOBILE_DRAFT_SAVED', {
+                                mobileFlushId: String(data.mobileFlushId), committed: mobileDraftCommitted === true
+                            });
+                        }
                         break;
                     case 'READING_ANNOTATION_SYNC':
                         await this._queueReadingAnnotationSync(routedExamId, data, windowInfo);

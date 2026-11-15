@@ -3,7 +3,7 @@
   "appName": "雅思练习",
   "webDir": "build/web",
   "ios": {
-    "contentInset": "automatic",
+    "contentInset": "never",
     "limitsNavigationsToAppBoundDomains": false
   },
   "plugins": {}

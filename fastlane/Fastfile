@@ -13,7 +13,7 @@ SIGNING_BRANCH = "signing-assets-v2"
 PROJECT_PATH = File.expand_path("../ios/App/App.xcodeproj", __dir__)
 INFO_PLIST_PATH = File.expand_path("../ios/App/App/Info.plist", __dir__)
 SCHEME = "App"
-MARKETING_VERSION = "1.0.0"
+MARKETING_VERSION = "1.1.0"
 
 default_platform(:ios)
 
@@ -269,6 +269,7 @@ platform :ios do
       "--build", build_number
     )
 
+    api_key = prepare_asc_api_key
     upload_to_testflight(
       api_key: api_key,
       ipa: ipa_path,

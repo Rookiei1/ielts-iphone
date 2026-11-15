@@ -97,6 +97,7 @@ def inject(html: str) -> str:
     scripts = (
         '<script src="/ios/bank.js"></script>\n'
         '<script src="/ios/iphone-bridge.js"></script>\n'
+        '<script src="/ios/mobile-ui.js"></script>\n'
     )
     style = '<link rel="stylesheet" href="/ios/iphone.css">\n'
     if 'name="viewport"' in html and "viewport-fit=cover" not in html:
@@ -136,6 +137,8 @@ def main():
     if not SOURCE.joinpath("scripts", "build-bundles.mjs").is_file():
         raise SystemExit("Pinned upstream source is missing. See UPSTREAM.md.")
     if DEST.exists():
+        if not DEST.resolve().is_relative_to(ROOT.resolve()):
+            raise SystemExit("Unexpected build path outside project")
         shutil.rmtree(DEST)
     shutil.copytree(SOURCE, DEST, ignore=shutil.ignore_patterns("node_modules"))
     exams_dir = DEST / "assets" / "generated" / "reading-exams"
@@ -178,10 +181,12 @@ def main():
     subprocess.run(["node", "scripts/build-bundles.mjs"], cwd=DEST, check=True)
     ios = DEST / "ios"
     ios.mkdir(parents=True, exist_ok=True)
-    for name in ("bank.js", "iphone-bridge.js", "iphone.css"):
+    for name in ("bank.js", "iphone-bridge.js", "iphone.css", "mobile-ui.js"):
         shutil.copy2(ROOT / "ios-src" / name, ios / name)
     for html in DEST.rglob("*.html"):
         html.write_text(inject(html.read_text(encoding="utf-8")), encoding="utf-8")
+    for name in ("IELTSViewController.swift", "PrivacyInfo.xcprivacy"):
+        shutil.copy2(ROOT / "native" / name, ROOT / "ios" / "App" / "App" / name)
     assert_clean(DEST)
     print(f"web root ready: {DEST}")
 

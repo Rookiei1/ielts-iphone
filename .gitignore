@@ -22,3 +22,5 @@ __pycache__/
 /vendor/
 fastlane/Preview.html
 fastlane/screenshots
+*.log
+docs/screenshots/mobile-failure-*.png

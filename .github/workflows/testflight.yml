@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   testflight:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
     name: Fastlane ${{ inputs.action }}
     runs-on: macos-26
     timeout-minutes: 55

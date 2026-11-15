@@ -31,6 +31,10 @@
 
 ## 已验证发布记录
 
+### 1.1.0 手机界面重做（发布结果待本次流水线核对）
+
+独立手机界面、单一安全区处理、阅读/题目切换、键盘避让、逐题复盘、会话恢复后作答，以及返回前持久化草稿确认。新增真实 iOS XCUITest 和两种 iPhone 原生截图；上传和可安装状态在验证后补充。
+
 - **2026-11-14 — v1.0.0 (Build 2)**:
   - **更新内容**: 全面重构 iPhone 原生风 UI（移除桌面端背景/模糊提示胶囊/错位底部滑动条，修复安全区与单栏排版、精简设置与记录卡片），并修复做题页白屏（先渲染题目再异步读取 IndexedDB 偏好并加超时保护，固定子 `WKWebView` Auto Layout 约束与 iOS CSS 注入顺序）。
   - **测试流水线 (`Test`)**: https://github.com/Rookiei1/ielts-iphone/actions/runs/43586849180 (commit `5a5f277`，通过 Web 构建、Python/Node 单测、Playwright 手机端流程测试、Plist 校验与未签名 iOS Simulator 构建)
