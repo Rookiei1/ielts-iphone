@@ -5,11 +5,19 @@ final class MobileFlowTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        app.launchArguments = ["--mobile-ui-diagnostics"]
         app.launch()
     }
 
     override func tearDownWithError() throws {
         if testRun?.hasSucceeded == false {
+            let diagnostics = app.staticTexts["mobile-native-diagnostics"].firstMatch
+            if diagnostics.exists, let state = diagnostics.value as? String {
+                let details = XCTAttachment(string: state)
+                details.name = "native-channel-state"
+                details.lifetime = .keepAlways
+                add(details)
+            }
             screenshot("failure-screen")
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.name = "failure-accessibility-tree"
@@ -56,7 +64,12 @@ final class MobileFlowTests: XCTestCase {
 
         let answer1 = app.textFields["答案 1"].firstMatch
         if !answer1.waitForExistence(timeout: 25) {
-            if element("查看详情").exists { tap("查看详情"); screenshot("channel-timeout-detail") }
+            if element("查看详情").exists {
+                tap("查看详情")
+                let technical = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "技术详情")).firstMatch
+                if technical.exists { technical.tap() }
+                screenshot("channel-timeout-detail")
+            }
             XCTFail("Practice WKWebView did not become ready for input")
             return
         }
