@@ -8,6 +8,16 @@ final class MobileFlowTests: XCTestCase {
         app.launch()
     }
 
+    override func tearDownWithError() throws {
+        if testRun?.hasSucceeded == false {
+            screenshot("failure-screen")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "failure-accessibility-tree"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+    }
+
     private func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

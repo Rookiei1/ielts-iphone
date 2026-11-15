@@ -12,6 +12,7 @@ unless tests
   tests.build_configurations.each do |configuration|
     configuration.build_settings.merge!(
       "PRODUCT_BUNDLE_IDENTIFIER" => "com.rookiei1.ieltspractice.uitests",
+      "PRODUCT_NAME" => "$(TARGET_NAME)",
       "GENERATE_INFOPLIST_FILE" => "YES",
       "SWIFT_VERSION" => "5.0",
       "TEST_TARGET_NAME" => "App",
