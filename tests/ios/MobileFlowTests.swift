@@ -10,18 +10,24 @@ final class MobileFlowTests: XCTestCase {
     private func fill(_ number: Int, _ answer: String) {
         let field=app.textFields["答案 \(number)"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout:20))
-        for _ in 0..<4 {
+        for _ in 0..<3 {
             let bottom=app.buttons["提交答案"].frame.minY-16
             let top=element("题目").frame.maxY+12
-            if field.frame.maxY <= bottom && field.frame.minY >= top {break}
+            let frame=field.frame
+            print("Answer \(number): field \(frame), visible \(top)...\(bottom)")
+            if frame.maxY <= bottom && frame.minY >= top {break}
             let origin=app.coordinate(withNormalizedOffset:.zero)
-            let low=origin.withOffset(CGVector(dx:app.frame.midX,dy:bottom-12))
-            let high=origin.withOffset(CGVector(dx:app.frame.midX,dy:max(top+20,bottom-220)))
-            if field.frame.maxY > bottom {low.press(forDuration:0.05,thenDragTo:high)}
-            else {high.press(forDuration:0.05,thenDragTo:low)}
+            let distance=min(max(frame.maxY>bottom ? frame.maxY-bottom+20 : top-frame.minY+20,36),bottom-top-28)
+            let x=app.frame.maxX-24
+            let startY=frame.maxY>bottom ? bottom-12 : top+12
+            let endY=frame.maxY>bottom ? startY-distance : startY+distance
+            origin.withOffset(CGVector(dx:x,dy:startY)).press(forDuration:0.05,thenDragTo:origin.withOffset(CGVector(dx:x,dy:endY)),withVelocity:.slow,thenHoldForDuration:0.4)
         }
+        XCTAssertLessThanOrEqual(field.frame.maxY,app.buttons["提交答案"].frame.minY-8,"Answer is still below the visible pane")
+        XCTAssertGreaterThanOrEqual(field.frame.minY,element("题目").frame.maxY,"Answer is still above the visible pane")
         field.tap();field.typeText(answer)
         XCTAssertEqual(field.value as? String,answer,"Typed answer did not reach the visible field")
+        if number == 3 {screenshot("00-keyboard")}
     }
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0 { screenshot("failure");let tree=XCTAttachment(string:app.debugDescription);tree.name="failure-tree";tree.lifetime = .keepAlways;add(tree) }
