@@ -55,7 +55,11 @@ final class MobileFlowTests: XCTestCase {
         start.tap()
 
         let answer1 = app.textFields["答案 1"].firstMatch
-        XCTAssertTrue(answer1.waitForExistence(timeout: 25), "Practice WKWebView did not render")
+        if !answer1.waitForExistence(timeout: 25) {
+            if element("查看详情").exists { tap("查看详情"); screenshot("channel-timeout-detail") }
+            XCTFail("Practice WKWebView did not become ready for input")
+            return
+        }
         let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true AND hittable == true"), object: answer1)
         XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 20), .completed)
         answer1.tap()

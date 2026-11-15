@@ -6,8 +6,8 @@
   "scripts": {
     "build": "python tools/prepare_web.py",
     "test:py": "python -m unittest discover -s tools/tests -v",
-    "test:node": "node --test tests/bank.test.js",
-    "test": "python -m unittest discover -s tools/tests -v && node --test tests/bank.test.js",
+    "test:node": "node --test tests/bank.test.js tests/native-channel.test.cjs",
+    "test": "python -m unittest discover -s tools/tests -v && node --test tests/bank.test.js tests/native-channel.test.cjs",
     "test:browser": "node tests/browser/mobile.cjs",
     "cap:sync": "npm run build && npx cap sync ios"
   },

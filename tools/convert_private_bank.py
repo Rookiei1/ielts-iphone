@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -13,6 +14,23 @@ from reading_source import SourceRejected, extract_registered_object
 
 EXAM_DIR = Path("assets/generated/reading-exams")
 NOTE_DIR = Path("assets/generated/reading-explanations")
+AUTHOR_FOOTER = re.compile(
+    r"<p\b[^>]*>\s*Compiled,\s*formatted,\s*and\s*lightly\s*proofread\s+by\s+ZYZ\s+Reading\s+Walks\.[\s\S]*?</p>",
+    re.IGNORECASE,
+)
+
+
+def clean_display_html(value):
+    """Remove the promotional footer from rendered HTML; retain source/audit metadata."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key.lower().endswith("html") and isinstance(item, str):
+                value[key] = AUTHOR_FOOTER.sub("", item)
+            else:
+                clean_display_html(item)
+    elif isinstance(value, list):
+        for item in value:
+            clean_display_html(item)
 
 
 def convert(source: Path, output: Path) -> dict:
@@ -29,6 +47,7 @@ def convert(source: Path, output: Path) -> dict:
             exam_id, payload = extract_registered_object(path.read_text(encoding="utf-8"))
             if "passage" not in payload or "answerKey" not in payload:
                 raise SourceRejected("missing passage or answerKey")
+            clean_display_html(payload)
             exams[exam_id] = payload
         except SourceRejected as error:
             failures.append({"file": path.name, "reason": str(error)})
@@ -40,6 +59,7 @@ def convert(source: Path, output: Path) -> dict:
                 continue
             try:
                 exam_id, payload = extract_registered_object(path.read_text(encoding="utf-8"))
+                clean_display_html(payload)
                 notes[exam_id] = payload
             except SourceRejected as error:
                 note_failures.append({"file": path.name, "reason": str(error)})

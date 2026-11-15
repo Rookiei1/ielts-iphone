@@ -24,6 +24,14 @@
     const HOST_MESSAGE_SOURCE = 'exam_host';
     let readingCandidateCodeCache = { mode: 'auto', customCode: '' };
 
+    function isLocalNativeAppPage() {
+        return global.location.protocol === 'capacitor:' && global.location.host === 'localhost';
+    }
+
+    function isNativeAppMessageOrigin(origin) {
+        return origin === 'null' || origin === 'capacitor://localhost';
+    }
+
     function deriveReferrerOrigin() {
         try {
             if (!document.referrer) return '';
@@ -31,6 +39,7 @@
             // File-page refs do not provide a usable web origin, so bind them through
             // the opaque/file message-origin handling below instead of pinning file://.
             if (parsed.protocol === 'file:') return '';
+            if (isLocalNativeAppPage() && parsed.protocol === 'capacitor:' && parsed.host === 'localhost') return '';
             if (!parsed.origin || parsed.origin === 'null' || parsed.origin === 'file://') return '';
             return parsed.origin;
         } catch (_) {
@@ -7269,7 +7278,12 @@
             && !String(state.expectedParentOrigin).startsWith('file:')
             ? state.expectedParentOrigin
             : '';
-        if (expectedParentOrigin) {
+        if (isLocalNativeAppPage()) {
+            if (expectedParentOrigin && !isNativeAppMessageOrigin(expectedParentOrigin)) return false;
+            if (!isNativeAppMessageOrigin(incomingOrigin) || !isNativeAppMessageOrigin(declaredOrigin)) return false;
+            state.parentOrigin = 'null';
+            state.parentOriginIsOpaque = true;
+        } else if (expectedParentOrigin) {
             if (incomingOrigin !== expectedParentOrigin || declaredOrigin !== expectedParentOrigin) {
                 return false;
             }
@@ -7304,7 +7318,8 @@
         if (!envelope || envelope.source !== HOST_MESSAGE_SOURCE) return false;
         const incomingOrigin = typeof event.origin === 'string' ? event.origin : '';
         if (state.parentOriginIsOpaque) {
-            if (incomingOrigin !== 'null' && incomingOrigin !== 'file://') return false;
+            if (isLocalNativeAppPage() ? !isNativeAppMessageOrigin(incomingOrigin)
+                : incomingOrigin !== 'null' && incomingOrigin !== 'file://') return false;
         } else if (!state.parentOrigin || incomingOrigin !== state.parentOrigin) {
             return false;
         }
@@ -7318,7 +7333,7 @@
         try { envelope.data.diagnosticCorrelation = readingCorrelation(); } catch (_) { }
         const target = state.parentWindow;
         if (!target || target === global || target.closed || typeof target.postMessage !== 'function') return false;
-        const targetOrigin = state.parentOrigin && state.parentOrigin !== 'null'
+        const targetOrigin = isLocalNativeAppPage() ? '*' : state.parentOrigin && state.parentOrigin !== 'null'
             ? state.parentOrigin
             : (state.expectedParentOrigin || (global.location.protocol === 'file:' ? '*' : ''));
         if (!targetOrigin) return false;

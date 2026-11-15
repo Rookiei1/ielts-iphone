@@ -867,6 +867,25 @@
             }
         },
 
+        _isLocalNativeAppUrl(rawUrl) {
+            try {
+                const parsed = new URL(rawUrl, window.location.href);
+                return window.location.protocol === 'capacitor:' && window.location.host === 'localhost'
+                    && parsed.protocol === 'capacitor:' && parsed.host === 'localhost';
+            } catch (_) { return false; }
+        },
+
+        _isExpectedExamMessageOrigin(windowInfo, incomingOrigin) {
+            if (this._isLocalNativeAppUrl(windowInfo.expectedUrl)) {
+                return windowInfo.allowOpaqueOrigin === true
+                    && (incomingOrigin === 'null' || incomingOrigin === 'capacitor://localhost');
+            }
+            if (windowInfo.expectedOrigin && windowInfo.expectedOrigin !== 'null') {
+                return incomingOrigin === windowInfo.expectedOrigin;
+            }
+            return windowInfo.allowOpaqueOrigin === true && (incomingOrigin === 'null' || incomingOrigin === 'file://');
+        },
+
         _resolveExamMessageEndpoint(rawUrl) {
             const href = this._ensureAbsoluteUrl(rawUrl);
             if (!href) {
@@ -874,6 +893,11 @@
             }
             try {
                 const parsed = new URL(href, window.location.href);
+                // WKWebView custom schemes have an opaque URL origin. Bind this
+                // exact bundled app endpoint, keeping source-window and token checks.
+                if (this._isLocalNativeAppUrl(parsed.href)) {
+                    return { expectedUrl: parsed.href, expectedOrigin: 'null', allowOpaqueOrigin: true };
+                }
                 // Chromium reports URL.origin as "file://" while postMessage events
                 // between file pages use the opaque origin "null".
                 if (parsed.protocol === 'file:') {
@@ -1626,6 +1650,7 @@
                         window.__IELTS_INLINE_ENHANCER__ = true;
 
                         var parentWindow = window.opener || window.parent || null;
+                        var nativeAppChannel = ${JSON.stringify(this._isLocalNativeAppUrl(window.location.href))};
                         var state = {
                             sessionId: ${JSON.stringify(sessionToken)},
                             examId: ${JSON.stringify(examId)},
@@ -1673,7 +1698,7 @@
                                 return;
                             }
                             try {
-                                var targetOrigin = state.parentOrigin && state.parentOrigin !== 'null'
+                                var targetOrigin = nativeAppChannel ? '*' : state.parentOrigin && state.parentOrigin !== 'null'
                                     ? state.parentOrigin
                                     : (state.expectedParentOrigin || (window.location.protocol === 'file:' ? '*' : ''));
                                 if (!targetOrigin) return;
@@ -1857,7 +1882,13 @@
                                     && String(state.expectedParentOrigin).indexOf('file:') !== 0
                                     ? state.expectedParentOrigin
                                     : '';
-                                if (expectedParentOrigin) {
+                                if (nativeAppChannel) {
+                                    var nativeOrigins = ['null', 'capacitor://localhost'];
+                                    if (expectedParentOrigin && nativeOrigins.indexOf(expectedParentOrigin) < 0) return;
+                                    if (nativeOrigins.indexOf(incomingOrigin) < 0 || nativeOrigins.indexOf(declaredOrigin) < 0) return;
+                                    state.parentOrigin = 'null';
+                                    state.parentOriginIsOpaque = true;
+                                } else if (expectedParentOrigin) {
                                     if (incomingOrigin !== expectedParentOrigin || declaredOrigin !== expectedParentOrigin) return;
                                     state.parentOrigin = expectedParentOrigin;
                                     state.parentOriginIsOpaque = false;
@@ -1887,7 +1918,7 @@
                                 : '';
                             var messageOrigin = event && typeof event.origin === 'string' ? event.origin : '';
                             var originMatches = state.parentOriginIsOpaque
-                                ? (messageOrigin === 'null' || messageOrigin === 'file://')
+                                ? (messageOrigin === 'null' || messageOrigin === (nativeAppChannel ? 'capacitor://localhost' : 'file://'))
                                 : Boolean(state.parentOrigin && messageOrigin === state.parentOrigin);
                             if (!event || event.source !== parentWindow || message.source !== 'exam_host'
                                 || !originMatches || !state.windowSessionToken || messageToken !== state.windowSessionToken) {
@@ -2532,18 +2563,8 @@
                 // before those constraints have been evaluated.
                 const sourceMatched = sourceWindow === expectedWindow;
                 const incomingOrigin = event && typeof event.origin === 'string' ? event.origin : '';
-                if (windowInfo.expectedOrigin && windowInfo.expectedOrigin !== 'null') {
-                    if (incomingOrigin !== windowInfo.expectedOrigin) {
-                        this._reportExamMessageRejected(examId, normalized.type, 'origin-mismatch', event);
-                        return;
-                    }
-                } else if (windowInfo.allowOpaqueOrigin) {
-                    if (incomingOrigin !== 'null' && incomingOrigin !== 'file://') {
-                        this._reportExamMessageRejected(examId, normalized.type, 'opaque-origin-mismatch', event);
-                        return;
-                    }
-                } else {
-                    this._reportExamMessageRejected(examId, normalized.type, 'origin-unbound', event);
+                if (!this._isExpectedExamMessageOrigin(windowInfo, incomingOrigin)) {
+                    this._reportExamMessageRejected(examId, normalized.type, 'origin-mismatch', event);
                     return;
                 }
 
@@ -5233,7 +5254,8 @@
                         && hostOrigin
                         && endpoint.expectedOrigin === hostOrigin;
                     const isTrustedLocalFile = endpoint.allowOpaqueOrigin && isFileProtocol;
-                    if (isTrustedSameOrigin || isTrustedLocalFile) {
+                    const isTrustedNativeApp = endpoint.allowOpaqueOrigin && this._isLocalNativeAppUrl(endpoint.expectedUrl);
+                    if (isTrustedSameOrigin || isTrustedLocalFile || isTrustedNativeApp) {
                         windowInfo.expectedUrl = endpoint.expectedUrl;
                         windowInfo.expectedOrigin = endpoint.expectedOrigin;
                         windowInfo.allowOpaqueOrigin = endpoint.allowOpaqueOrigin;
