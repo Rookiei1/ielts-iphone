@@ -1,5 +1,6 @@
 (function (window, document) {
   'use strict';
+  window.__IELTS_MOBILE_APP__ = true;
   const state = { tab: 'browse', reviewId: null, part: 'all', frequency: 'all', query: '', limit: 40, records: [], exams: [], ready: false };
   const icons = {
     browse: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5zM4 18.5A2.5 2.5 0 0 1 6.5 16H20"/>',

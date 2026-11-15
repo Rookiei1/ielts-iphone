@@ -1,6 +1,9 @@
 (function initShuiThreeBackground(global) {
     'use strict';
 
+    // The phone UI has an opaque surface; do not animate an invisible WebGL scene.
+    if (global.__IELTS_MOBILE_APP__) return;
+
     const THREE = global.THREE;
     let themeIntentGeneration = 0;
     let pendingInitialBackground = null;

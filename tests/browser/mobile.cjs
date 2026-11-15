@@ -50,6 +50,7 @@ async function main() {
     await page.locator('.m-exam').first().waitFor();
     assert.equal(await page.title(),'雅思练习');
     assert.equal(await page.locator('.m-exam').count(),3);
+    assert.equal(await page.evaluate(() => !!window.SHUIThreeBackground),false,'hidden desktop renderer is still running');
     const text = await page.locator('body').innerText();
     for (const name of ['ZYZ','小红书','Salloway','IELTS Atlas','解锁']) assert.ok(!text.includes(name),name);
     for (const width of [320,375,390,430]) {
