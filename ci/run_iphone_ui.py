@@ -16,7 +16,12 @@ catalog = json.loads(Path('build/devices.json').read_text())['devices']
 runtimes = [(key, [d for d in devices if d.get('isAvailable') and 'iPhone' in d.get('name', '')])
             for key, devices in catalog.items() if '.iOS-' in key]
 runtimes = [(key, devices) for key, devices in runtimes if devices]
-runtime, devices = max(runtimes, key=lambda item: tuple(map(int, re.findall(r'\d+', item[0]))))
+# Keep both screen sizes on the runtime that successfully ran the 16e flow.
+# The runner's newer runtimes can stall in CoreLocation's first-boot migration.
+reference_runtimes = [(key, devices) for key, devices in runtimes
+                      if any(d['name'] == 'iPhone 16e' for d in devices)]
+runtime, devices = max(reference_runtimes or runtimes,
+                       key=lambda item: tuple(map(int, re.findall(r'\d+', item[0]))))
 if role == 'compact':
     candidates = [d for d in devices if 'Max' not in d['name']]
     device = min(candidates, key=lambda d: ('16e' not in d['name'], d['name']))
@@ -53,7 +58,7 @@ try:
         raise RuntimeError('Could not stop other simulators')
     if run(['xcrun', 'simctl', 'boot', udid], 60) != 0:
         raise RuntimeError('Could not boot selected iPhone')
-    if run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], 240) != 0:
+    if run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], 480) != 0:
         raise RuntimeError('Selected iPhone did not finish booting')
     command = ['xcodebuild', 'test', '-project', 'ios/App/App.xcodeproj', '-scheme', 'AppMobileUITests',
                '-configuration', 'Debug', '-destination', f'platform=iOS Simulator,id={udid}',
