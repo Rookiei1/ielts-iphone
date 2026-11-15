@@ -21,7 +21,7 @@ final class MobileFlowTests: XCTestCase {
         XCTAssertTrue(first.waitForExistence(timeout:30))
         XCTAssertGreaterThanOrEqual(first.frame.minX,0);XCTAssertLessThanOrEqual(first.frame.maxX,app.frame.maxX+1)
         realDatabasePhase=true;first.tap()
-        XCTAssertTrue(element("文章").waitForExistence(timeout:20));tap("文章");tap("题目")
+        XCTAssertTrue(element("文章").waitForExistence(timeout:20));tap("文章");screenshot("00-real-passage");tap("题目");screenshot("00-real-questions")
         XCTAssertTrue(app.buttons["提交答案"].waitForExistence(timeout:15));tap("提交答案")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","得分 ")).firstMatch.waitForExistence(timeout:15))
         tap("返回题库");realDatabasePhase=false
@@ -31,8 +31,20 @@ final class MobileFlowTests: XCTestCase {
         one.tap();one.typeText("shed")
         let two=app.textFields["答案 2"].firstMatch;two.tap();two.typeText("lantern")
         let three=app.textFields["答案 3"].firstMatch;three.tap();three.typeText("cedar")
-        tap("收起键盘");screenshot("01-questions")
-        for label in ["第 4 题 TRUE","第 5 题 FALSE","第 6 题 NOT GIVEN"] { let choice=element(label);if !choice.isHittable {app.swipeUp()};choice.tap() }
+        tap("收起键盘")
+        let hidden=XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for:[hidden],timeout:10),.completed,"Done did not dismiss the keyboard")
+        XCTAssertEqual(three.value as? String,"cedar","The keyboard changed the typed answer")
+        screenshot("01-questions")
+        for label in ["第 4 题 TRUE","第 5 题 FALSE","第 6 题 NOT GIVEN"] {
+            let choice=element(label)
+            if !choice.isHittable {app.swipeUp(velocity:.slow)}
+            choice.tap()
+            let selected=XCTNSPredicateExpectation(predicate:NSPredicate(format:"value == '1'"),object:choice)
+            if XCTWaiter.wait(for:[selected],timeout:2) != .completed {choice.tap()}
+            XCTAssertEqual(choice.value as? String,"1","Answer choice did not select")
+        }
+        for label in ["第 4 题 TRUE","第 5 题 FALSE","第 6 题 NOT GIVEN"] {XCTAssertEqual(element(label).value as? String,"1","A prior answer choice was lost")}
         tap("提交答案")
         XCTAssertTrue(app.staticTexts["得分 6 / 6"].waitForExistence(timeout:20),"Grading did not complete")
         screenshot("02-result");tap("文章");screenshot("03-passage");tap("返回题库")

@@ -7,7 +7,12 @@
   const qid=value=>{const m=String(value||'').match(/\d+/);return m?'q'+Number(m[0]):'';};
   const idsOf=value=>[...String(value||'').matchAll(/\d+/g)].map(m=>'q'+Number(m[0]));
   const display=id=>state.exam?.questionDisplayMap?.[id]||String(id).replace(/^q/,'');
-  let noticeTimer;
+  let noticeTimer,focusedInput;
+  app.tabIndex=-1;
+  function dismissKeyboard(){
+    if(focusedInput?.isConnected)focusedInput.blur();
+    document.activeElement?.blur();app.focus({preventScroll:true});
+  }
   function notice(text){const box=document.getElementById('notice');box.textContent=text;box.hidden=false;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>box.hidden=true,3500);}
   function clean(html){
     const template=document.createElement('template');template.innerHTML=html||'';
@@ -22,7 +27,7 @@
   }
   function list(){
     const count=state.bank.filter(e=>!e.examId.startsWith('sample-')).length||state.bank.length;
-    state.exam=null;app.innerHTML='<header class="top"><h1>阅读练习</h1><p class="count">'+count+' 篇阅读</p><input class="search" id="search" type="search" placeholder="搜索文章" aria-label="搜索题目" autocomplete="off" value="'+esc(state.query)+'"></header><section class="list" id="exam-list" aria-label="题库"></section>';
+    state.exam=null;app.innerHTML='<header class="top"><h1>阅读练习</h1><p class="count">'+count+' 篇阅读</p><input class="search" id="search" type="search" placeholder="搜索文章" aria-label="搜索题目" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+esc(state.query)+'"></header><section class="list" id="exam-list" aria-label="题库"></section>';
     function filter(){const needle=normalize(state.query);const rows=state.bank.filter(e=>normalize(e.meta?.title||e.examId).includes(needle));document.getElementById('exam-list').innerHTML=rows.length?rows.map(e=>'<button class="exam" data-open="'+esc(e.examId)+'" aria-label="开始练习 '+esc(e.meta?.title||e.examId)+'"><small>'+esc(e.meta?.category||'阅读')+'</small><strong>'+esc(e.meta?.title||e.examId)+'</strong><span>开始练习 →</span></button>').join(''):'<p class="empty">没有找到文章</p>';}
     document.getElementById('search').addEventListener('input',e=>{state.query=e.target.value;filter();});document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});filter();
   }
@@ -58,8 +63,8 @@
         if(mapped.length===1&&Array.isArray(expected))state.choiceSets.add(mapped[0]);
         input.dataset.max=String(mapped.length>1?mapped.length:Array.isArray(expected)?expected.length:ids.length);
       }
-      if(!['radio','checkbox'].includes(input.type)){if(input.tagName==='INPUT')input.type='text';input.classList.add('answer');input.setAttribute('aria-label','答案 '+display(mapped[0]));input.autocomplete='off';input.autocapitalize='none';input.spellcheck=false;input.removeAttribute('value');}
-      else input.setAttribute('aria-label','第 '+mapped.map(display).join('、')+' 题 '+input.value);
+      if(!['radio','checkbox'].includes(input.type)){if(input.tagName==='INPUT')input.type='text';input.classList.add('answer');input.setAttribute('aria-label','答案 '+display(mapped[0]));input.autocomplete='off';input.autocapitalize='none';input.setAttribute('autocorrect','off');input.spellcheck=false;input.removeAttribute('value');}
+      else {input.setAttribute('aria-label','第 '+mapped.map(display).join('、')+' 题 '+input.value);input.closest('label')?.classList.add('answer-option');}
     });
     element.querySelectorAll('[data-question],.match-dropzone,.dropzone,.drop-target').forEach(slot=>{
       const id=qid(slot.dataset.question||slot.dataset.questionId||slot.dataset.target);if(ids.includes(id)&&!bound.has(id)){slot.replaceWith(answerRow(id,options));bound.add(id);}
@@ -73,7 +78,7 @@
     const row=document.createElement('div');row.className='answer-row';const label=document.createElement('label');label.textContent='第 '+display(id)+' 题';row.append(label);
     const input=document.createElement(options.length?'select':'input');input.className='answer';input.dataset.qids=JSON.stringify([id]);input.name=id;input.setAttribute('aria-label','答案 '+display(id));
     if(options.length)input.innerHTML='<option value="">请选择</option>'+options.map(o=>'<option value="'+esc(o.value)+'">'+esc(o.text)+'</option>').join('');
-    else{input.type='text';input.autocomplete='off';input.autocapitalize='none';input.spellcheck=false;}
+    else{input.type='text';input.autocomplete='off';input.autocapitalize='none';input.setAttribute('autocorrect','off');input.spellcheck=false;}
     row.append(input);return row;
   }
   function restore(){
@@ -114,7 +119,7 @@
     box.innerHTML='<div class="result"><strong>得分 '+score.correct+' / '+score.total+'</strong><p>标准答案已显示在下方。</p><button class="plain" data-redo>重新做这篇</button></div><ol class="review">'+score.items.map(item=>'<li><strong>第 '+esc(display(item.id))+' 题</strong><p class="'+(item.correct?'ok':'wrong')+'">'+(item.correct?'✓ ':'')+'我的答案：'+esc(Array.isArray(item.actual)?item.actual.join('、'):item.actual||'未作答')+'</p><p class="reference">参考答案：'+esc(Array.isArray(item.expected)?item.expected.join(' / '):item.expected)+'</p></li>').join('')+'</ol>';
     box.hidden=false;document.getElementById('submit').hidden=true;document.getElementById('progress').textContent='已提交 · '+score.correct+' / '+score.total;
   }
-  function pane(name){state.pane=name;document.getElementById('passage').classList.toggle('is-hidden',name!=='passage');document.getElementById('questions').classList.toggle('is-hidden',name!=='questions');document.getElementById('passage').inert=name!=='passage';document.getElementById('questions').inert=name!=='questions';document.querySelectorAll('[data-pane]').forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===name));document.activeElement?.blur();}
+  function pane(name){dismissKeyboard();state.pane=name;document.getElementById('passage').classList.toggle('is-hidden',name!=='passage');document.getElementById('questions').classList.toggle('is-hidden',name!=='questions');document.getElementById('passage').inert=name!=='passage';document.getElementById('questions').inert=name!=='questions';document.querySelectorAll('[data-pane]').forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===name));}
   function open(id){
     state.exam=state.bank.find(e=>e.examId===id);if(!state.exam)throw new Error('题目不存在');state.groups=state.exam.questionGroups||[];state.choiceSets=new Set();
     let draft;try{draft=JSON.parse(localStorage.getItem('practice-only:'+id)||'null');}catch(_){}state.answers=draft?.answers||{};state.submitted=draft?.submitted===true;
@@ -129,16 +134,17 @@
   app.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button)return;
     if(button.dataset.open)open(button.dataset.open);
-    if(button.hasAttribute('data-back')){save();list();}
-    if(button.hasAttribute('data-done'))document.activeElement?.blur();
+    if(button.hasAttribute('data-back')){dismissKeyboard();save();list();}
+    if(button.hasAttribute('data-done'))dismissKeyboard();
     if(button.dataset.pane)pane(button.dataset.pane);
-    if(button.id==='submit'){document.activeElement?.blur();state.submitted=true;save();result();restore();document.getElementById('questions').scrollTop=0;pane('questions');}
+    if(button.id==='submit'){dismissKeyboard();state.submitted=true;save();result();restore();document.getElementById('questions').scrollTop=0;pane('questions');}
     if(button.hasAttribute('data-redo')){state.answers={};state.submitted=false;localStorage.removeItem('practice-only:'+state.exam.examId);open(state.exam.examId);}
   });
   app.addEventListener('change',event=>{const input=event.target;if(!input.dataset.qids)return;if(input.type==='checkbox'&&input.checked){const all=[...document.querySelectorAll('#questions input[type=checkbox]')].filter(i=>i.dataset.qids===input.dataset.qids);const max=Number(input.dataset.max)||1;if(all.filter(i=>i.checked).length>max){input.checked=false;notice('最多选择 '+max+' 项');}}save();});
   app.addEventListener('input',event=>{if(event.target.dataset.qids)save();});
   function fit(){document.documentElement.style.setProperty('--app-height',(window.visualViewport?.height||innerHeight)+'px');}
-  app.addEventListener('focusin',event=>{if(event.target.dataset?.qids)setTimeout(()=>event.target.scrollIntoView({block:'nearest'}),250);});
+  app.addEventListener('pointerdown',event=>{if(event.target.closest('[data-done]')){event.preventDefault();dismissKeyboard();}});
+  app.addEventListener('focusin',event=>{if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))focusedInput=event.target;if(event.target.dataset?.qids)setTimeout(()=>{if(document.activeElement===event.target)event.target.scrollIntoView({block:'nearest'});},250);});
   window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);fit();window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
   window.PracticeApp={open,list,collect,grade,get bank(){return state.bank;},get current(){return state.exam;}};
   fetch('bank.json').then(r=>{if(!r.ok)throw new Error('题库读取失败');return r.json();}).then(data=>{if(!Array.isArray(data.exams)||!data.exams.length)throw new Error('题库为空');state.bank=data.exams;list();}).catch(error=>{app.innerHTML='<p class="loading">'+esc(error.message)+'。请关闭后重新打开。</p>';});

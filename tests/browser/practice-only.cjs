@@ -34,6 +34,7 @@ const root=path.resolve(__dirname,'../../build/web');const shots=path.resolve(__
   await page.getByRole('tab',{name:'文章',exact:true}).click();await page.locator('#passage').getByText(/paper notebook in a shed/).waitFor();await page.screenshot({path:path.join(shots,'practice-passage.png')});
   await page.getByRole('tab',{name:'题目',exact:true}).click();
   for(const [n,text] of [[1,'shed'],[2,'lantern'],[3,'cedar']])await page.getByRole('textbox',{name:'答案 '+n,exact:true}).fill(text);
+  await page.getByRole('button',{name:'收起键盘'}).click();assert.equal(await page.evaluate(()=>document.activeElement.tagName),'MAIN','Done did not leave the answer field');
   for(const [n,value] of [[4,'TRUE'],[5,'FALSE'],[6,'NOT GIVEN']])await page.getByRole('radio',{name:'第 '+n+' 题 '+value,exact:true}).check();
   await page.getByRole('button',{name:'提交答案',exact:true}).click();await page.getByText('得分 6 / 6',{exact:true}).waitFor();assert.equal(await page.locator('.review li').count(),6);await page.screenshot({path:path.join(shots,'practice-result.png')});
   await page.getByRole('button',{name:'重新做这篇'}).click();await page.getByRole('button',{name:'提交答案',exact:true}).click();await page.getByText('得分 0 / 6',{exact:true}).waitFor();
