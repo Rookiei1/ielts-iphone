@@ -64,10 +64,13 @@ def fetch_bank():
     if cache.exists():
         data=json.loads(cache.read_text(encoding='utf-8'))
         if data.get('sourceRevision')==REVISION and len(data.get('exams',[]))==242:return data['exams']
-    entries=json.loads(download(f'https://api.github.com/repos/{REPO}/contents/{DIRECTORY}?ref={REVISION}'))
+    # A trailing slash makes GitHub redirect this endpoint and drop the ref query.
+    entries=json.loads(download(f'https://api.github.com/repos/{REPO}/contents/{DIRECTORY.rstrip("/")}?ref={REVISION}'))
     media=json.loads(download(f'https://api.github.com/repos/{REPO}/contents/{DIRECTORY}media?ref={REVISION}'))
     MEDIA_INDEX={entry['name']:entry for entry in media if entry['type']=='file'}
     files=[entry for entry in entries if entry['name'].endswith('.js') and entry['name']!='manifest.js']
+    if any(urllib.parse.parse_qs(urllib.parse.urlparse(entry['url']).query).get('ref') != [REVISION] for entry in files):
+        raise ValueError('GitHub did not return the pinned database revision')
     def read(entry):
         saved=ROOT/'build/upstream-reading'/entry['sha']
         if saved.exists():raw=saved.read_bytes()
