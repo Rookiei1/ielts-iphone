@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Pipeline action: diagnose, bootstrap, or release"
+        description: "Pipeline action: diagnose, bootstrap, release, or status"
         required: true
         default: "diagnose"
         type: choice
@@ -12,6 +12,7 @@ on:
           - diagnose
           - bootstrap
           - release
+          - status
       build_number:
         description: "Optional explicit CFBundleVersion override"
         required: false
@@ -88,6 +89,7 @@ jobs:
           ruby -c ci/signing_identity.rb
           bundle exec ruby ci/test_profile_certificates.rb
           python3 ci/test_release_plists.py
+          node --test ci/test_testflight_status.mjs
 
       - name: Prepare Apple API key and signing deploy key
         shell: bash
@@ -127,13 +129,14 @@ jobs:
           bundle exec fastlane ios "${{ inputs.action }}"
 
       - name: Upload release logs and verified IPA
-        if: always() && inputs.action == 'release'
+        if: always() && (inputs.action == 'release' || inputs.action == 'status')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ielts-iphone-release-artifacts
           path: |
             build/release/IELTSPractice.ipa
             build/release/logs
+            build/release/testflight-status.json
           if-no-files-found: ignore
 
       - name: Clean up temporary secrets and signing keychain
