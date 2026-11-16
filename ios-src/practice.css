@@ -2,6 +2,10 @@
 
 #app:focus{outline:none}
 
+.exam-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+.exam-meta small{margin:0}
+.exam .completed-badge{display:inline-flex;margin:0;padding:3px 8px;border-radius:999px;background:#e7f6ed;color:#28734d;font-size:12px;font-weight:600;line-height:1.4}
+
 html,body{position:fixed;inset:0;overscroll-behavior:none}
 #app{position:fixed;top:var(--app-top,0px);left:0;right:0}
 

@@ -29,7 +29,13 @@ const root=path.resolve(__dirname,'../../build/web');const shots=path.resolve(__
    await page.setViewportSize({width,height:844});
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal clipping');
   }
+  const legacyId=await page.evaluate(()=>{const exam=PracticeApp.bank.find(e=>!e.examId.startsWith('sample-'));localStorage.setItem('practice-only:'+exam.examId,JSON.stringify({answers:{},submitted:true}));PracticeApp.list();return exam.examId;});
+  assert.equal(await page.locator('.exam[data-open="'+legacyId+'"] .completed-badge').textContent(),'已做','Existing submitted practice was not marked');
+  assert.equal(await page.locator('.exam .completed-badge').count(),1,'Untouched readings were marked completed');
   await page.setViewportSize({width:390,height:844});await page.getByRole('searchbox',{name:'搜索题目'}).fill('Harbor');await page.screenshot({path:path.join(shots,'practice-library.png')});
+  assert.equal(await page.locator('.exam .completed-badge').count(),0,'Unsubmitted practice was marked');
+  await page.getByRole('button',{name:/开始练习 Harbor/}).click();await page.getByRole('button',{name:'返回题库'}).click();
+  assert.equal(await page.locator('.exam .completed-badge').count(),0,'Opening a reading marked it completed');
   await page.getByRole('button',{name:/开始练习 Harbor/}).click();await page.getByRole('textbox',{name:'答案 1',exact:true}).waitFor();
   await page.getByRole('tab',{name:'文章',exact:true}).click();await page.locator('#passage').getByText(/paper notebook in a shed/).waitFor();await page.screenshot({path:path.join(shots,'practice-passage.png')});
   await page.getByRole('tab',{name:'题目',exact:true}).click();
@@ -37,10 +43,17 @@ const root=path.resolve(__dirname,'../../build/web');const shots=path.resolve(__
   await page.getByRole('button',{name:'收起键盘'}).click();assert.equal(await page.evaluate(()=>document.activeElement.tagName),'MAIN','Done did not leave the answer field');
   for(const [n,value] of [[4,'TRUE'],[5,'FALSE'],[6,'NOT GIVEN']])await page.getByRole('radio',{name:'第 '+n+' 题 '+value,exact:true}).check();
   await page.getByRole('button',{name:'提交答案',exact:true}).click();await page.getByText('得分 6 / 6',{exact:true}).waitFor();assert.equal(await page.locator('.review li').count(),6);await page.screenshot({path:path.join(shots,'practice-result.png')});
-  await page.getByRole('button',{name:'重新做这篇'}).click();await page.getByRole('button',{name:'提交答案',exact:true}).click();await page.getByText('得分 0 / 6',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'返回题库'}).click();assert.equal(await page.locator('.exam .completed-badge').textContent(),'已做');await page.screenshot({path:path.join(shots,'practice-completed.png')});
+  await page.reload();await page.locator('.exam').first().waitFor();assert.equal(await page.locator('.exam[data-open="'+legacyId+'"] .completed-badge').textContent(),'已做','Legacy completion lost after reload');await page.getByRole('searchbox',{name:'搜索题目'}).fill('Harbor');assert.equal(await page.locator('.exam .completed-badge').textContent(),'已做','Completion lost after reload');
+  await page.getByRole('button',{name:/开始练习 Harbor/}).click();await page.getByText('得分 6 / 6',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'重新做这篇'}).click();await page.getByRole('button',{name:'返回题库'}).click();assert.equal(await page.locator('.exam .completed-badge').textContent(),'已做','Redo erased previous completion');
+  await page.getByRole('button',{name:/开始练习 Harbor/}).click();assert.equal(await page.getByRole('textbox',{name:'答案 1',exact:true}).inputValue(),'','Redo did not clear current answers');
+  await page.getByRole('button',{name:'提交答案',exact:true}).click();await page.getByText('得分 0 / 6',{exact:true}).waitFor();
   await page.getByRole('button',{name:'重新做这篇'}).click();await page.getByRole('textbox',{name:'答案 1',exact:true}).fill('draft-marker');await page.getByRole('button',{name:'返回题库'}).click();
+  assert.equal(await page.locator('.exam .completed-badge').textContent(),'已做','Draft save erased previous completion');
   await page.getByRole('button',{name:/开始练习 Harbor/}).click();assert.equal(await page.getByRole('textbox',{name:'答案 1',exact:true}).inputValue(),'draft-marker');
-  await page.reload();await page.locator('.exam').first().waitFor();await page.getByRole('searchbox',{name:'搜索题目'}).fill('Harbor');await page.getByRole('button',{name:/开始练习 Harbor/}).click();assert.equal(await page.getByRole('textbox',{name:'答案 1',exact:true}).inputValue(),'draft-marker');
+  await page.reload();await page.locator('.exam').first().waitFor();await page.getByRole('searchbox',{name:'搜索题目'}).fill('Harbor');assert.equal(await page.locator('.exam .completed-badge').textContent(),'已做','Completion lost with draft after reload');await page.getByRole('button',{name:/开始练习 Harbor/}).click();assert.equal(await page.getByRole('textbox',{name:'答案 1',exact:true}).inputValue(),'draft-marker');
+  console.log('Completion marker: legacy submissions, open-only, submitted, restart and redo preservation passed.');
   assert.deepEqual(errors,[]);console.log('Open, passage/questions, grading, negative score, immediate return, restart and phone bounds passed.');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

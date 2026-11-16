@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=document.getElementById('app');
-  const state={bank:[],exam:null,pane:'questions',query:'',submitted:false,answers:{},groups:[],choiceSets:new Set()};
+  const state={bank:[],exam:null,pane:'questions',query:'',submitted:false,completed:false,answers:{},groups:[],choiceSets:new Set()};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=value=>String(value??'').trim().toLocaleLowerCase().replace(/[‘’]/g,"'").replace(/\s+/g,' ');
   const qid=value=>{const m=String(value||'').match(/\d+/);return m?'q'+Number(m[0]):'';};
@@ -25,10 +25,18 @@
     });
     return template.innerHTML;
   }
+  function progress(id){try{return JSON.parse(localStorage.getItem('practice-only:'+id)||'null');}catch(_){return null;}}
+  function wasCompleted(record){return record?.completed===true||record?.submitted===true;}
   function list(){
     const count=state.bank.filter(e=>!e.examId.startsWith('sample-')).length||state.bank.length;
     state.exam=null;app.innerHTML='<header class="top"><h1>阅读练习</h1><p class="count">'+count+' 篇阅读</p><input class="search" id="search" type="search" placeholder="搜索文章" aria-label="搜索题目" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+esc(state.query)+'"></header><section class="list" id="exam-list" aria-label="题库"></section>';
-    function filter(){const needle=normalize(state.query);const rows=state.bank.filter(e=>normalize(e.meta?.title||e.examId).includes(needle));document.getElementById('exam-list').innerHTML=rows.length?rows.map(e=>'<button class="exam" data-open="'+esc(e.examId)+'" aria-label="开始练习 '+esc(e.meta?.title||e.examId)+'"><small>'+esc(e.meta?.category||'阅读')+'</small><strong>'+esc(e.meta?.title||e.examId)+'</strong><span>开始练习 →</span></button>').join(''):'<p class="empty">没有找到文章</p>';}
+    function filter(){
+      const needle=normalize(state.query);const rows=state.bank.filter(e=>normalize(e.meta?.title||e.examId).includes(needle));
+      document.getElementById('exam-list').innerHTML=rows.length?rows.map(e=>{
+        const completed=wasCompleted(progress(e.examId));
+        return '<button class="exam" data-open="'+esc(e.examId)+'" aria-label="开始练习 '+esc(e.meta?.title||e.examId)+(completed?'，已做':'')+'"><div class="exam-meta"><small>'+esc(e.meta?.category||'阅读')+'</small>'+(completed?'<span class="completed-badge">已做</span>':'')+'</div><strong>'+esc(e.meta?.title||e.examId)+'</strong><span>开始练习 →</span></button>';
+      }).join(''):'<p class="empty">没有找到文章</p>';
+    }
     document.getElementById('search').addEventListener('input',e=>{state.query=e.target.value;filter();});document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});filter();
   }
   function radioTables(body){
@@ -99,7 +107,7 @@
     });
     checkboxes.forEach(({ids,values})=>ids.forEach(id=>answers[id]=values));return answers;
   }
-  function save(){if(!state.exam)return;state.answers=collect();try{localStorage.setItem('practice-only:'+state.exam.examId,JSON.stringify({answers:state.answers,submitted:state.submitted}));}catch(_){notice('这次作答暂未保存，请先完成当前练习。');}}
+  function save(){if(!state.exam)return;state.answers=collect();try{localStorage.setItem('practice-only:'+state.exam.examId,JSON.stringify({answers:state.answers,submitted:state.submitted,completed:state.completed}));}catch(_){notice('这次作答暂未保存，请先完成当前练习。');}}
   function matches(actual,expected){const allowed=Array.isArray(expected)?expected:[expected];return allowed.some(value=>normalize(actual)===normalize(value));}
   function grade(answers=collect()){
     const items=Object.entries(state.exam.answerKey).map(([id,expected])=>{
@@ -122,7 +130,7 @@
   function pane(name){dismissKeyboard();state.pane=name;document.getElementById('passage').classList.toggle('is-hidden',name!=='passage');document.getElementById('questions').classList.toggle('is-hidden',name!=='questions');document.getElementById('passage').inert=name!=='passage';document.getElementById('questions').inert=name!=='questions';document.querySelectorAll('[data-pane]').forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===name));}
   function open(id){
     state.exam=state.bank.find(e=>e.examId===id);if(!state.exam)throw new Error('题目不存在');state.groups=state.exam.questionGroups||[];state.choiceSets=new Set();
-    let draft;try{draft=JSON.parse(localStorage.getItem('practice-only:'+id)||'null');}catch(_){}state.answers=draft?.answers||{};state.submitted=draft?.submitted===true;
+    const draft=progress(id);state.answers=draft?.answers||{};state.submitted=draft?.submitted===true;state.completed=wasCompleted(draft);
     app.innerHTML='<header class="practice-top"><button class="plain" data-back aria-label="返回题库">‹ 返回</button><h1>'+esc(state.exam.meta?.title||id)+'</h1><button class="plain" data-done aria-label="收起键盘">完成</button></header><nav class="switch" aria-label="练习内容"><button data-pane="passage" role="tab">文章</button><button data-pane="questions" role="tab">题目</button></nav><div class="panes"><article class="pane" id="passage" aria-label="阅读文章"></article><section class="pane" id="questions" aria-label="作答"><div id="result" hidden></div><div id="groups"></div></section></div><footer class="bottom"><small id="progress">'+Object.keys(state.exam.answerKey).length+' 道题</small><button id="submit" class="primary" aria-label="提交答案">提交答案</button></footer>';
     const passage=document.getElementById('passage');passage.innerHTML='<h2>'+esc(state.exam.meta?.title||'')+'</h2>'+(state.exam.passage?.blocks||[]).map(b=>clean(b.bodyHtml||b.html||b.contentHtml||'')).join('');
     passage.querySelectorAll('input,select,textarea,[data-question],.match-dropzone,.dropzone').forEach(slot=>{const id=qid(slot.name||slot.dataset.question||slot.dataset.questionId||slot.id);const marker=document.createElement('span');marker.className='slot-number';marker.textContent=id?'['+display(id)+']':'';slot.replaceWith(marker);});
@@ -137,8 +145,8 @@
     if(button.hasAttribute('data-back')){dismissKeyboard();save();list();}
     if(button.hasAttribute('data-done'))dismissKeyboard();
     if(button.dataset.pane)pane(button.dataset.pane);
-    if(button.id==='submit'){dismissKeyboard();state.submitted=true;save();result();restore();document.getElementById('questions').scrollTop=0;pane('questions');}
-    if(button.hasAttribute('data-redo')){state.answers={};state.submitted=false;localStorage.removeItem('practice-only:'+state.exam.examId);open(state.exam.examId);}
+    if(button.id==='submit'){dismissKeyboard();state.submitted=true;state.completed=true;save();result();restore();document.getElementById('questions').scrollTop=0;pane('questions');}
+    if(button.hasAttribute('data-redo')){localStorage.setItem('practice-only:'+state.exam.examId,JSON.stringify({answers:{},submitted:false,completed:state.completed}));open(state.exam.examId);}
   });
   app.addEventListener('change',event=>{const input=event.target;if(!input.dataset.qids)return;if(input.type==='checkbox'&&input.checked){const all=[...document.querySelectorAll('#questions input[type=checkbox]')].filter(i=>i.dataset.qids===input.dataset.qids);const max=Number(input.dataset.max)||1;if(all.filter(i=>i.checked).length>max){input.checked=false;notice('最多选择 '+max+' 项');}}save();});
   app.addEventListener('input',event=>{if(event.target.dataset.qids)save();});

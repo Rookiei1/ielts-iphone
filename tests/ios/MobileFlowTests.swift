@@ -32,11 +32,11 @@ final class MobileFlowTests: XCTestCase {
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0 { screenshot("failure");let tree=XCTAttachment(string:app.debugDescription);tree.name="failure-tree";tree.lifetime = .keepAlways;add(tree) }
     }
-    private func harbor() {
+    private func harbor(completed: Bool = false) {
         let search=app.searchFields["搜索题目"].firstMatch
         XCTAssertTrue(search.waitForExistence(timeout:30));search.tap();search.typeText("Harbor\n")
         let start=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","开始练习 Harbor")).firstMatch
-        XCTAssertTrue(start.waitForExistence(timeout:20));start.tap()
+        XCTAssertTrue(start.waitForExistence(timeout:20));XCTAssertEqual(start.label.hasSuffix("，已做"),completed);start.tap()
     }
     func testActualReadingOpenAndCompletePractice() throws {
         let first=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","开始练习 ")).firstMatch
@@ -69,10 +69,10 @@ final class MobileFlowTests: XCTestCase {
         tap("提交答案")
         XCTAssertTrue(app.staticTexts["得分 6 / 6"].waitForExistence(timeout:20),"Grading did not complete")
         screenshot("02-result");tap("文章");screenshot("03-passage");tap("返回题库")
-        app.terminate();app.launch();harbor()
+        app.terminate();app.launch();harbor(completed:true)
         XCTAssertTrue(app.staticTexts["得分 6 / 6"].waitForExistence(timeout:20),"Answers lost after restart")
         tap("重新做这篇");let draft=app.textFields["答案 1"].firstMatch;draft.tap();draft.typeText("draft-marker");tap("返回题库")
-        let start=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","开始练习 Harbor")).firstMatch;XCTAssertTrue(start.waitForExistence(timeout:15));start.tap()
+        let start=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","开始练习 Harbor")).firstMatch;XCTAssertTrue(start.waitForExistence(timeout:15));XCTAssertTrue(start.label.hasSuffix("，已做"),"Redo erased the completed marker");screenshot("04-completed-marker");start.tap()
         XCTAssertEqual(app.textFields["答案 1"].firstMatch.value as? String,"draft-marker","Immediate return lost the answer")
         screenshot("04-draft-restored")
     }
