@@ -2,7 +2,9 @@
 
 只做题：选文章、切换文章/题目、作答、提交判分。完整 242 篇题库随安装包离线提供。退出或重启后保留当前作答。
 
-TestFlight 已发布 **1.1.0（4）**，Apple 处理完成，现有内部测试账号可更新 IELTS Practice。两款 iPhone 模拟器的做题与重启保存验收已通过，详见 [发布记录](RELEASE.md)。
+提交过答案的题目会在题库卡片右上角显示“已做”。已有提交记录自动识别，重启或重新做题后仍保留标记；仅打开文章不会标记。
+
+TestFlight 已发布 **1.1.0（5）**，Apple 处理完成，现有内部测试账号可更新 IELTS Practice。本次“已做”标记已通过 iPhone 模拟器的提交、重启与重做保留验收，详见 [发布记录](RELEASE.md)。
 
 独立实现手机做题页面，只复用公开题库数据。不加载原桌面程序、弹窗会话和功能菜单。原有源码及验证材料作为历史参考保留，不参与打包。
 
@@ -17,4 +19,4 @@ npx cap sync ios
 
 测试用原创示例只在 `IELTS_TEST_FIXTURES=1` 时加入，发布包校验必须恰好包含 242 篇正式题目。发布记录及配置见 [RELEASE.md](RELEASE.md)。
 
-iPhone 模拟器实际截图：[正式题目](docs/screenshots/practice-native-question.png)、[大屏键盘输入](docs/screenshots/practice-native-keyboard.png)、[提交判分](docs/screenshots/practice-native-result.png)。
+iPhone 模拟器实际截图：[正式题目](docs/screenshots/practice-native-question.png)、[大屏键盘输入](docs/screenshots/practice-native-keyboard.png)、[提交判分](docs/screenshots/practice-native-result.png)、[已做标记](docs/screenshots/practice-completed.png)。

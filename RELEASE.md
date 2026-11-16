@@ -35,6 +35,14 @@
 
 ## 已验证发布记录
 
+### 2026-11-16 — 1.1.0（Build 5）已做标记，已可更新
+
+- 源码与发布提交：`e303cac`。只新增题库卡片右上角的“已做”标记，提交过答案后显示；已存在的提交记录自动识别，重新做题、返回题库或重启后保留标记，仅打开文章不会标记。
+- [验收运行](https://github.com/Rookiei1/ielts-iphone/actions/runs/43790520057)：Chromium/WebKit 的整库回归及标记兼容检查通过；iPhone 16e（iOS 26.2）实际做题、标记、重启及重做验收通过，140.667 秒，0 失败。截图见 `docs/screenshots/practice-completed.png`。
+- [TestFlight 发布](https://github.com/Rookiei1/ielts-iphone/actions/runs/43790565245)：签名包校验通过，原生验收成功后上传。Apple 返回 `VALID`、`IN_BETA_TESTING`、未过期，`availableToExistingInternalTesters=true`；现有内部测试组 1 名测试员可更新，无需重新邀请。
+- 更新到 **1.1.0（5）** 即可；沿用原有作答存储，不需重新导入 242 篇题库。此版本已取代 Build 4。
+- 验收使用浏览器和 iPhone 模拟器，不包含用户真机实测；未提交外部 Beta 审核。
+
 ### 2026-11-15 — 1.1.0（Build 4）纯做题版，已可更新
 
 只保留 242 篇题库、文章/题目切换、作答及提交判分，自动保存当前作答。使用独立页面与判分实现，不打包原桌面运行时。
